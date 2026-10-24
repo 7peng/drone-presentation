@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Homeward Live Model</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600;700&amp;family=Noto+Sans:wght@400;500;600&amp;display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cesium@1.146.0/Build/Cesium/Widgets/widgets.css">
 <link rel="stylesheet" href="live.css">
 <!-- Token: ../config.local.js (git-ignored) sets window.CESIUM_ION_TOKEN; or #token=… / localStorage (same as ../cesium/). -->
@@ -17,21 +20,40 @@
 <div id="hud" class="panel top-left">
   <p class="eyebrow">Live model · Magdeburg Börde</p>
   <div class="row">
-    <select id="mission"></select>
-    <button id="b-ours">Fly (vision)</button>
-    <button id="b-stock">Fly (stock)</button>
-    <button id="b-speed">1×</button>
+    <div class="seg" role="tablist" aria-label="Navigation">
+      <button data-scn="stock" title="1">Stock PX4</button>
+      <button data-scn="ours" title="2">Our system</button>
+    </div>
+    <button id="b-fly" title="Space">Fly</button>
+  </div>
+  <div class="row small">
+    <select id="mission" aria-label="Mission"></select>
+    <button id="b-speed" title="Speed">1×</button>
   </div>
   <div id="status" class="status">Loading…</div>
-  <dl id="stats"></dl>
+  <dl class="key">
+    <dt>Position error</dt><dd id="r-err">–</dd>
+    <dt>Distance to home</dt><dd id="r-home">–</dd>
+    <dt>Navigation</dt><dd id="r-mode">–</dd>
+    <dt>Wind</dt><dd><svg id="wind-arrow" class="arrow" viewBox="-8 -8 16 16" width="14" height="14" aria-hidden="true"><path d="M0-7L4.5 1H1.2V7H-1.2V1H-4.5Z" fill="currentColor"/></svg> <span id="wind-txt">–</span></dd>
+  </dl>
+  <div id="bars" hidden>
+    <div class="bar"><span>Match confidence</span><i><b id="bar-conf"></b></i><em id="v-conf"></em></div>
+    <div class="bar"><span>Arrived at breadcrumb</span><i><b id="bar-arr" class="arr"></b></i><em id="v-arr"></em></div>
+  </div>
+  <div id="debug" hidden>
+    <dl id="stats"></dl>
+    <label class="wind">Wind <input id="wind" type="range" min="0" max="8" step="0.5" value="3"> <span id="wind-val">mission default</span></label>
+    <p class="fine">D debug · T true position · C chase/top · 1/2 stock/ours</p>
+  </div>
 </div>
 
-<div id="camwrap" class="panel bottom-left">
-  <p class="eyebrow">Downward camera (live, 224 px)</p>
-  <div class="cams">
-    <figure><div id="nadir"></div><figcaption>now</figcaption></figure>
-    <figure><canvas id="bcimg" width="224" height="224"></canvas><figcaption id="bccap">breadcrumb</figcaption></figure>
-  </div>
+<div id="strip" class="panel bottom-left" aria-label="Vision pipeline">
+  <figure><div class="camwrap"><div id="nadir"></div></div><figcaption>camera</figcaption></figure>
+  <span class="chev" aria-hidden="true">›</span>
+  <figure><canvas id="rectimg" width="224" height="224"></canvas><figcaption>rectified</figcaption></figure>
+  <span class="chev" aria-hidden="true">›</span>
+  <figure><canvas id="bcimg" width="224" height="224"></canvas><figcaption id="bccap">breadcrumb</figcaption></figure>
 </div>
 
 <script src="nav.js"></script>

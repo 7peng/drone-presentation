@@ -16,7 +16,7 @@
   const ORT_DIST = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/';
   const BLUE = '#315c91', GREEN = '#2e7d4f', GREEN_MAP = '#34c759', RED = '#b3261e', TRUTH = '#f29900';
   const S = { mission: null, running: false, speed: parseFloat(params.get('speed') || '1'), log: [], vision: params.get('autoplay') !== 'stock',
-    present: params.get('present') === '1', debug: params.get('present') !== '1', showTruth: false, wind: params.has('wind') ? parseFloat(params.get('wind')) : null,
+    present: params.get('present') === '1' || params.has('embed'), debug: params.get('present') !== '1' && !params.has('embed'), showTruth: false, wind: params.has('wind') ? parseFloat(params.get('wind')) : null,
     realism: params.get('ideal') !== '1', mainMode: 'chase' };
   const SPEEDS = [1, 2, 4, 8, Infinity];
   document.body.classList.toggle('present', S.present);
@@ -183,7 +183,25 @@
     add({ polyline: { positions: cb(() => { const j = jamAt(); return j < 0 ? [] : path(3, j)(); }), width: 3, material: est, depthFailMaterial: est.withAlpha(0.4) } });
     add({ position: groundCart(m.home[0], m.home[1], 1.5), point: { pixelSize: 14, color: C.WHITE, outlineColor: C.fromCssColorString('#202630'), outlineWidth: 3, disableDepthTestDistance: Infinity },
       label: { text: 'Home', font: '600 14px "Google Sans", sans-serif', fillColor: C.fromCssColorString('#202630'), showBackground: true, backgroundColor: C.WHITE, pixelOffset: new Cesium.Cartesian2(0, -24), disableDepthTestDistance: Infinity } });
-    add({ position: cb(() => nedToCart(m.kf.x[0], m.kf.x[1], m.D)), point: { pixelSize: 12, color: est, outlineColor: C.WHITE, outlineWidth: 2, disableDepthTestDistance: Infinity, show: cb(() => m.tJam !== null) } });
+    // controller's estimate: a "ghost" drone (green ours / red stock) tethered to the true drone, tether labelled with the error
+    const estNow = () => nedToCart(m.kf.x[0], m.kf.x[1], m.D), truthNow = () => nedToCart(m.p[0], m.p[1], m.D);
+    const errNow = () => Math.hypot(m.p[0] - m.kf.x[0], m.p[1] - m.kf.x[1]);
+    add({ position: cb(estNow), billboard: { image: ICON_DRONE, width: 34, height: 34, color: est.withAlpha(0.75), disableDepthTestDistance: Infinity, show: cb(() => m.tJam !== null) } });
+    add({ polyline: { positions: cb(() => [truthNow(), estNow()]), width: 1.5, material: C.WHITE.withAlpha(0.85), show: cb(() => m.tJam !== null && errNow() > 1) } });
+    add({ position: cb(() => Cesium.Cartesian3.midpoint(truthNow(), estNow(), new Cesium.Cartesian3())),
+      label: { text: cb(() => `${errNow() < 10 ? errNow().toFixed(1) : Math.round(errNow())} m`), font: '600 13px "Google Sans", sans-serif', fillColor: C.WHITE,
+        showBackground: true, backgroundColor: est.withAlpha(0.85), backgroundPadding: new Cesium.Cartesian2(6, 3), pixelOffset: new Cesium.Cartesian2(0, -14),
+        disableDepthTestDistance: Infinity, show: cb(() => m.tJam !== null && errNow() > 1) } });
+    // model direction: from the estimated position along Delta_NE (breadcrumb - live), i.e. where the model says the target
+    // breadcrumb is; drawn to scale with a 40 m minimum so short offsets stay visible
+    const arrowPts = () => {
+      const f = S.lastFrame;
+      if (!f || f.ne === undefined || m.tJam === null || S.mission !== m) return [];
+      const L = Math.hypot(f.ne[0], f.ne[1]), s = L > 1e-3 ? Math.max(L, 40) / L : 0;
+      const p0 = m.kf.x;
+      return s ? [nedToCart(p0[0], p0[1], m.D), nedToCart(p0[0] + s * f.ne[0], p0[1] + s * f.ne[1], m.D)] : [];
+    };
+    add({ polyline: { positions: cb(arrowPts), width: 16, material: new Cesium.PolylineArrowMaterialProperty(C.fromCssColorString(GREEN_MAP)), show: cb(() => m.vision) } });
     add({ polyline: { positions: cb(() => [nedToCart(m.p[0], m.p[1], m.D), groundCart(m.p[0], m.p[1], 0)]), width: 1.5, material: C.WHITE.withAlpha(0.6), depthFailMaterial: C.WHITE.withAlpha(0.25) } });
     add({ position: cb(() => nedToCart(m.p[0], m.p[1], m.D)), billboard: { image: ICON_DRONE, width: 38, height: 38, disableDepthTestDistance: Infinity } });
     // target breadcrumb (blue ring on the ground)
@@ -259,11 +277,12 @@
     const err = Math.hypot(m.p[0] - m.kf.x[0], m.p[1] - m.kf.x[1]), dh = Math.hypot(m.p[0] - m.home[0], m.p[1] - m.home[1]);
     const fr = m.frames, fused = fr.filter((f) => f.status === 'fused').length, last = [...fr].reverse().find((f) => f.pNm !== undefined);
     const ours = m.vision;
-    status(m.done ? (ours ? `Home · ${fmt(dh)} m from take-off` : `Thinks it is home · actually ${fmtM(dh)} away`) : m.phase === 'out' ? 'GPS OK' : 'GPS JAMMED',
-      m.done ? (ours || dh < 10 ? 'home' : 'jam') : m.phase === 'out' ? '' : 'jam');
+    const gpsOk = m.phase === 'out' || m.phase === 'hover';
+    status(m.done ? (ours ? `Home · ${fmt(dh)} m from take-off` : `Thinks it is home · actually ${fmtM(dh)} away`) : gpsOk ? 'GPS OK' : 'GPS JAMMED',
+      m.done ? (ours || dh < 10 ? 'home' : 'jam') : gpsOk ? '' : 'jam');
     $('r-err').textContent = fmtM(err); $('r-err').classList.toggle('bad', err > 20);
     $('r-home').textContent = fmtM(dh);
-    $('r-mode').textContent = m.phase === 'out' ? 'GPS · laying breadcrumbs' : ours ? 'Vision fixes (live model)' : 'IMU only';
+    $('r-mode').textContent = m.phase === 'hover' ? 'GPS · home breadcrumbs (hover)' : m.phase === 'out' ? 'GPS · laying breadcrumbs' : ours ? 'Vision fixes (live model)' : 'IMU only';
     // wind arrow (points where the wind blows TO, screen-up = north)
     $('wind-arrow').style.transform = `rotate(${m.windFrom + 180}deg)`;   // svg arrow points north at 0°
     $('wind-txt').textContent = `${fmt(m.windSpeed, 1)} m/s`;
@@ -316,6 +335,14 @@
     ctx.beginPath(); ctx.ellipse(cx, cy, Math.max(2, Math.sqrt(l1)), Math.max(2, Math.sqrt(l2)), Math.abs(sxy) < 1e-9 ? (sxx >= syy ? 0 : Math.PI / 2) : ang, 0, 2 * Math.PI); ctx.stroke();
     ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(cx - 9, cy); ctx.lineTo(cx - 3, cy); ctx.moveTo(cx + 3, cy); ctx.lineTo(cx + 9, cy); ctx.moveTo(cx, cy - 9); ctx.lineTo(cx, cy - 3); ctx.moveTo(cx, cy + 3); ctx.lineTo(cx, cy + 9); ctx.stroke();
+    // model direction in the tile: from where the drone is (crosshair) to the breadcrumb (tile centre)
+    const L = Math.hypot(112 - cx, 112 - cy);
+    if (L > 6) {
+      const ux = (112 - cx) / L, uy = (112 - cy) / L, hx = 112 - 9 * ux, hy = 112 - 9 * uy;
+      ctx.shadowBlur = 0; ctx.strokeStyle = GREEN_MAP; ctx.fillStyle = GREEN_MAP; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(cx + 4 * ux, cy + 4 * uy); ctx.lineTo(hx, hy); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(112, 112); ctx.lineTo(hx - 5 * uy, hy + 5 * ux); ctx.lineTo(hx + 5 * uy, hy - 5 * ux); ctx.closePath(); ctx.fill();
+    }
     if (S.showTruth && fr.trueCells) {
       const tx = 112 + 16 * fr.trueCells[1], ty = 112 + 16 * fr.trueCells[0];
       ctx.strokeStyle = TRUTH; ctx.lineWidth = 2;
@@ -331,8 +358,9 @@
     S.vision = vision; segOn();
     const wind = opts.wind ?? (S.wind !== null ? { speed: S.wind, fromDeg: spec.wind_from_deg } : undefined);
     const m = new Nav.Mission(spec, { vision, drift, ground, thr, camHz: opts.camHz, realism: opts.realism ?? S.realism, wind, retAgl: opts.retAgl,
+      homeBcs: opts.homeBcs ?? (params.has('homebcs') ? parseInt(params.get('homebcs'), 10) : 4), seedOffset: opts.seedOffset ?? 0,
       multiBc: opts.multiBc ?? (params.get('multibc') === '0' ? 1 : 3) });
-    S.mission = m; S.running = true; headingSm = null; S.abort = null;
+    S.mission = m; S.running = true; headingSm = null; S.abort = null; S.lastFrame = null;
     buildScene(m);
     $('bcimg').getContext('2d').clearRect(0, 0, 224, 224); $('rectimg').getContext('2d').clearRect(0, 0, 224, 224);
     const speed = () => opts.speed ?? S.speed;
@@ -365,8 +393,13 @@
           const res = await Model.match(enc.desc, cap.mask14, b.desc, b.mask14);
           let matMs = res.ms;
           res.extra = [];
-          for (const j of r.extra || []) {   // home phase: same rectified frame against the next breadcrumbs out
-            const x = await Model.match(enc.desc, cap.mask14, m.bcs[j].desc, m.bcs[j].mask14);
+          for (const { j, fov } of r.extra || []) {   // home phase: the other home breadcrumbs
+            let qd = enc.desc, qm = cap.mask14;
+            if (Math.abs(fov - r.fovOut) > 1e-6) {   // different footprint bucket: re-rectify the same raw frame
+              const rr = rectify(cap.raw, r.Rest, r.Rtgt, r.rawFov, fov);
+              const e2 = await Model.encode(rr.rgb); qd = e2.desc; qm = rr.mask14; matMs += e2.ms;
+            }
+            const x = await Model.match(qd, qm, m.bcs[j].desc, m.bcs[j].mask14);
             matMs += x.ms; delete x.probs; x.j = j; res.extra.push(x);
           }
           res.ms = enc.ms + matMs;
@@ -436,8 +469,17 @@
     if (S.wind !== null) { ws.value = S.wind; wl.textContent = `${S.wind} m/s`; }
     $('debug').hidden = !S.debug;
     segOn();
+    const DECK_KEYS = ['PageDown', 'PageUp', 'ArrowRight', 'ArrowLeft', 'n', 'N', 'p', 'P', 'f', 'F', 'Home', 'End'];
+    if (params.has('embed')) {
+      window.addEventListener('message', (e) => {
+        if (e.data?.type !== 'demo-scenario') return;
+        S.vision = e.data.scenario !== 'stock'; segOn();
+        if (e.data.autoplay) go(S.vision);
+      });
+    }
     document.addEventListener('keydown', (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (params.has('embed') && DECK_KEYS.includes(e.key)) { parent.postMessage({ type: 'deck-key', key: e.key }, '*'); e.preventDefault(); return; }
       const k = e.key.toLowerCase();
       if (k === 'd') { S.debug = !S.debug; $('debug').hidden = !S.debug; }
       else if (k === 't') { S.showTruth = !S.showTruth; if (S.mission) drawBc(S.mission, S.lastFrame); }

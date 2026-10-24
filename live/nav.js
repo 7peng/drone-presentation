@@ -169,7 +169,7 @@
     //   camHz, sigA, realism (default true), retAgl (return AGL factor; default 1 ± U(0.10, 0.20) when realism)}
     constructor(spec, opt) {
       this.spec = spec; this.opt = opt; this.vision = !!opt.vision; this.realism = opt.realism !== false;
-      const R = rng(spec.seed * 7919 + 17);
+      const R = rng(spec.seed * 7919 + 17 + 104729 * (opt.seedOffset ?? 0));   // seedOffset: other noise/gust realisations, same mission
       this.r = R;
       this.ground = opt.ground;
       this.home = spec.home_ne.slice();
@@ -202,7 +202,13 @@
       // gust-scale attitude jitter of the true body (OU, tau 0.7 s, sigma = gust_deg / 2 per axis, roll/pitch only)
       this.jitSig = this.realism ? 0.5 * (spec.gust_deg ?? 2) * DEG : 0; this.jit = [0, 0];
       this.kf = new KF(this.p, this.v, opt.sigA ?? 1.0);   // sigma_a covers the replay's time-varying IMU error (median 0.15 m/s²)
-      this.t = 0; this.phase = 'out'; this.tJam = null; this.k = null; this.rth = null;
+      // pre-flight hover over home at cruise altitude: H home breadcrumbs (opt.homeBcs, default 4) at 1.5 s intervals. In a
+      // hover the accelerometer levels the attitude estimate (roll/pitch error ~0.2°, independent per frame); yaw keeps the
+      // slowly varying mag-heading error. At home the drone fuses fixes against all H home breadcrumbs.
+      this.H = opt.homeBcs ?? 4;
+      this.hoverTimes = Array.from({ length: this.H }, (_, i) => 1.0 + 1.5 * i);
+      this.hoverEnd = this.H ? this.hoverTimes[this.H - 1] + 0.5 : 0;
+      this.t = 0; this.phase = this.H ? 'hover' : 'out'; this.tJam = null; this.k = null; this.rth = null;
       this.bcs = []; this.lastBc = null; this.pending = null; this.nextCam = null;
       this.Iv = [0, 0]; this.aDes = [0, 0, 0]; this.settle = 0; this.homeT0 = null; this.tMax = Infinity;
       this.frames = []; this.traj = []; this.adv = { arrival: 0, pass: 0 }; this.done = false; this.end = null;
@@ -214,8 +220,9 @@
     tiltDeg() { return Math.acos(Math.min(1, this.R[2][2])) / DEG; }
     crabDeg() { return Math.hypot(this.v[0], this.v[1]) > 2 ? wrap(this.yaw - Math.atan2(this.v[1], this.v[0])) / DEG : 0; }
     // camera request: raw camera (true attitude) and the estimate used to rectify it
-    camReq(type, extra, fovOut) {
-      const a = this.attOU, w = this.realism ? [a[0] + this.r.n(0.3 * DEG), a[1] + this.r.n(0.3 * DEG), a[2] + this.r.n(1 * DEG)] : [0, 0, 0];
+    camReq(type, extra, fovOut, hover = false) {
+      const a = this.attOU, w = !this.realism ? [0, 0, 0] : hover ? [this.r.n(0.2 * DEG), this.r.n(0.2 * DEG), a[2] + this.r.n(1 * DEG)]
+        : [a[0] + this.r.n(0.3 * DEG), a[1] + this.r.n(0.3 * DEG), a[2] + this.r.n(1 * DEG)];
       const Rt = this.realism ? m3(this.R, so3exp([this.jit[0], this.jit[1], 0])) : [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
       const Re = m3(Rt, so3exp(w));
       return Object.assign({ type, n: this.p[0], e: this.p[1], d: this.D, rawFov: this.realism ? 90 : fovOut, fovOut,
@@ -240,7 +247,11 @@
     control() {
       const pe = this.kf.p, ve = this.kf.v, s0 = hyp(ve[0], ve[1]);
       let vDes = [0, 0];
-      if (this.phase === 'out') {
+      if (this.phase === 'hover') {   // hold over home on the (GPS) estimate
+        const d = [this.home[0] - pe[0], this.home[1] - pe[1]];
+        vDes = [0.5 * d[0], 0.5 * d[1]];
+        if (this.t >= this.hoverEnd) { this.phase = 'out'; if (this.bcs.length) this.lastBc = this.bcs[this.bcs.length - 1].pe.slice(); }
+      } else if (this.phase === 'out') {
         const s = this.chain.project(pe), sEnd = this.jamFrac * this.chain.total, remain = sEnd - s;
         const L = Math.max(30, 2.5 * s0);
         const c = remain > 1 ? this.chain.point(Math.min(s + L, sEnd)) : this.chain.point(sEnd);
@@ -265,7 +276,7 @@
           this.Dt = retD(bcs[k]);
           const bk = bcs[k].pe, b1 = bcs[k - 1].pe, u = [b1[0] - bk[0], b1[1] - bk[1]], un = hyp(u[0], u[1]);
           const nearOk = !this.cx || hyp(pe[0] - bk[0], pe[1] - bk[1]) < 30;
-          if (nearOk && un > 1e-3 && ((pe[0] - bk[0]) * u[0] + (pe[1] - bk[1]) * u[1]) / un >= 0) { this.k -= 1; this.adv.pass++; }
+          if (nearOk && un > 1e-3 && ((pe[0] - bk[0]) * u[0] + (pe[1] - bk[1]) * u[1]) / un >= 0) { this.k -= 1; this.adv.pass++; if (this.k < this.H) this.k = 0; }
         } else {
           carrot = h; spd = Math.min(this.vc, Math.sqrt(2 * dh), 0.35 * dh + 0.3);   // gentle final approach (noisy fixes)
           this.Dt = retD(bcs[0]);
@@ -318,16 +329,27 @@
       const step = Math.round(this.t / DT);
       if (step % 10 === 0) {   // GPS 5 Hz
         this.gm = this.gm.map((g) => g * Math.exp(-0.2 / 60) + R.n(0.8 * Math.sqrt(1 - Math.exp(-0.4 / 60))));
-        if (this.phase === 'out') {
+        if (this.phase === 'out' || this.phase === 'hover') {
           this.kf.update([this.p[0] + this.gm[0] + R.n(0.4), this.p[1] + this.gm[1] + R.n(0.4)], [[0.9 ** 2, 0], [0, 0.9 ** 2]], [0, 1], 0);
           this.kf.update([this.v[0] + R.n(0.1), this.v[1] + R.n(0.1)], [[0.01, 0], [0, 0.01]], [2, 3], 0);
         }
       }
-      if (step % 25 === 0) this.traj.push([this.t, this.p[0], this.p[1], this.kf.x[0], this.kf.x[1], this.phase === 'out' ? 1 : this.phase === 'rth' ? 2 : 3, this.k ?? -1,
+      if (step % 25 === 0) this.traj.push([this.t, this.p[0], this.p[1], this.kf.x[0], this.kf.x[1], this.phase === 'out' || this.phase === 'hover' ? 1 : this.phase === 'rth' ? 2 : 3, this.k ?? -1,
         Math.sqrt(Math.max(this.kf.P[0][0] + this.kf.P[1][1], 0)), this.D, this.tiltDeg()]);
     }
 
     events() {
+      if (this.phase === 'hover' && this.bcs.length < this.H && this.t >= this.hoverTimes[this.bcs.length]) {
+        const agl = this.aglTrue(), agl_s = agl * (1 + this.r.n(0.05)), bucket = bucketFor(agl_s), pe = this.kf.p;
+        const bc = { i: this.bcs.length, home: true, t: this.t, pe: pe.slice(), P: this.kf.Pp, pt: this.p.slice(), D: this.D, alt: this.altEst(), agl, agl_s, bucket,
+          fov_deg: 2 * Math.atan(bucket / 2 / Math.max(agl_s, 1)) / DEG };
+        this.bcs.push(bc);
+        if (this.vision) {
+          this.pending = { kind: 'bc', bc, req: this.camReq('bc', { i: bc.i }, bc.fov_deg, true) };
+          return this.pending.req;
+        }
+        return null;
+      }
       if (this.phase === 'out' || this.jamPending) {
         const pe = this.kf.p;
         if (this.lastBc === null || hyp(pe[0] - this.lastBc[0], pe[1] - this.lastBc[1]) >= this.bcSpacing || this.jamPending) {
@@ -354,11 +376,19 @@
           const aglq = b.agl_s + (this.altEst() - b.alt);
           fr.aglq = aglq;
           fr.fov_deg = Math.min(2 * Math.atan(b.bucket / 2 / Math.max(aglq, 1)) / DEG, 170);
-          // home phase: also match the next breadcrumbs out (same footprint bucket, so the same rectified frame) and fuse
-          // the averaged fix -- one breadcrumb's bias no longer decides where the drone lands (opt.multiBc, default 3)
-          const nb = this.k === 0 ? (this.opt.multiBc ?? 3) : 1;
+          // home phase: match against every home breadcrumb (the frame is re-rectified when a home breadcrumb landed in a
+          // different footprint bucket) and fuse the averaged fix, so no single breadcrumb's attitude error decides where the
+          // drone lands. Without home breadcrumbs (homeBcs = 0): the next opt.multiBc - 1 breadcrumbs out, same bucket.
           const extra = [];
-          for (let j = 1; j < nb && j < this.bcs.length; j++) if (this.bcs[j].bucket === b.bucket) extra.push(j);
+          if (this.k === 0) {
+            const alt = this.altEst();
+            const ids = this.H > 1 ? Array.from({ length: this.H - 1 }, (_, j) => j + 1)
+              : Array.from({ length: Math.max(0, (this.opt.multiBc ?? 3) - 1) }, (_, j) => j + 1).filter((j) => j < this.bcs.length && this.bcs[j].bucket === b.bucket);
+            for (const j of ids) {
+              const bj = this.bcs[j], aq = bj.agl_s + (alt - bj.alt);
+              extra.push({ j, fov: Math.min(2 * Math.atan(bj.bucket / 2 / Math.max(aq, 1)) / DEG, 170) });
+            }
+          }
           fr.extra = extra;
           const req = this.camReq('cam', { k: this.k, extra }, fr.fov_deg);
           fr.tilt = req.tilt; fr.attErrDeg = req.attErrDeg;
@@ -405,7 +435,7 @@
         fr.status = ok ? 'fused' : 'gated'; fr.maha = maha;
         if (ok) this.lastFused = this.t;
       }
-      if (this.k > 0 && res.pArr >= thr.arrival_p95 && hyp(this.kf.x[0] - b.pe[0], this.kf.x[1] - b.pe[1]) <= 5) { this.k -= 1; this.adv.arrival++; fr.advance = 'arrival'; }
+      if (this.k > 0 && res.pArr >= thr.arrival_p95 && hyp(this.kf.x[0] - b.pe[0], this.kf.x[1] - b.pe[1]) <= 5) { this.k -= 1; this.adv.arrival++; fr.advance = 'arrival'; if (this.k < this.H) this.k = 0; }
     }
 
     finish(reason) { this.done = true; this.end = reason; }
@@ -435,7 +465,7 @@
         crab_deg_abs_median: q(srt(this.frames.map((f) => Math.abs(f.crab || 0))), 0.5),
         agl_out_mean: bcAgl.length ? bcAgl.reduce((s, x) => s + x, 0) / bcAgl.length : null,
         agl_ret_mean: ag.length ? ag.reduce((s, x) => s + x, 0) / ag.length : null,
-        route_out_m: this.chain.total * this.jamFrac,
+        route_out_m: this.chain.total * this.jamFrac, home_bcs: this.H,
       };
     }
   }

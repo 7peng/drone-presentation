@@ -152,3 +152,9 @@ fit();
 
 const [, hs, hk] = location.hash.match(/^#(\d+)(?:\.(\d+))?/) || [];
 go(hs ? Number(hs) - 1 : 0, hk ? Number(hk) : 0);
+
+// Load every demo page up front (hidden), so Google 3D tiles stream into each page's tile cache during the earlier
+// slides instead of on arrival. ?nopreload turns this off on weak machines.
+if (!new URLSearchParams(location.search).has('nopreload')) {
+  setTimeout(() => slides.forEach((el) => el.hasAttribute('data-demo') && frameFor(el)), 1500);
+}

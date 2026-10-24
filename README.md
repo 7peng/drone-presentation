@@ -5,7 +5,7 @@ CesiumJS replay of recorded missions over Google Photorealistic 3D Tiles.
 
 It is a static site with no build step.
 
-- `index.html`: the deck (14 slides; the two live-replay slides load `cesium/` full screen).
+- `index.html`: the deck (12 slides; the two live-replay slides load `cesium/` full screen).
 - `cesium/`: the live 3D replay (`cesium/index.html`), also usable on its own.
 - `presenter.html`: speaker notes plus a 5:00 timer, synced to the deck.
 - `media/`: web-encoded videos (H.264, ≤1080p, CRF 26–27, `+faststart`). They are committed as plain git files, not LFS, because GitHub Pages does not serve LFS content. Keep each file under ~20 MB.
@@ -57,7 +57,7 @@ CesiumJS is pinned to `cesium@1.146.0` from jsDelivr.
 | P | presenter window (notes, timer, pace) |
 | T | reset timer |
 
-| Live replay (slides 3 and 8, or `cesium/`) | |
+| Live replay (slides 3 and 7, or `cesium/`) | |
 |---|---|
 | Space | play / pause |
 | 1 / 2 | stock PX4 / our system |
@@ -70,7 +70,7 @@ CesiumJS is pinned to `cesium@1.146.0` from jsDelivr.
 
 `cesium/?scenario=ours` opens on our system. `?autoplay` starts playback.
 
-**Live-model hook.** Each live slide can load a different page in the shared iframe: add `data-demo-src="live/?embed=1"` to slide 8 to point it at `live/` (from `wgpeng/live-model`). The deck still posts `{type: 'demo-scenario', scenario}` to whatever page is loaded.
+**Live-model hook.** Each live slide can load a different page in the shared iframe: add `data-demo-src="live/?embed=1"` to slide 7 ("Live: our system") to point it at `live/` (from `wgpeng/live-model`). The deck still posts `{type: 'demo-scenario', scenario}` to whatever page is loaded.
 
 ## Data
 
@@ -92,11 +92,10 @@ against independent satellite imagery: field edges, roads and the railway line u
 
 Open `/?draft` to outline every placeholder in yellow:
 
-- the team name and track on slide 1;
-- the complex-routes row on slide 12, once that sweep finishes.
+- the team name and track on slide 1.
 
 `media/jamming_failure.mp4` is the final horizontal-chase render (v3c, 720p, 10.7 MB). Its poster is
-`demo/stills/1_gps_ok.png`. The `rth_mission012.mp4` video (slide 9, and the fallback for "ours") is from model v1.
+`demo/stills/1_gps_ok.png`. The `rth_mission012.mp4` video (slide 8, and the fallback for "ours") is from model v1.
 
 ## Deploy to GitHub Pages
 

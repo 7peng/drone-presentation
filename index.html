@@ -162,10 +162,10 @@
     </div>
   </section>
 
-  <!-- ============================================================ 6. MODEL -->
-  <section class="slide s-model" data-title="Model" data-time="25">
-    <p class="eyebrow">Model</p>
-    <h2>A 1 MB matcher that knows when it is unsure</h2>
+  <!-- ============================================================ 6. MODEL + DATA -->
+  <section class="slide s-model" data-title="Model and data" data-time="35">
+    <p class="eyebrow">Model and data</p>
+    <h2>A 1 MB matcher, trained on 1.82 M frames</h2>
     <div class="flow">
       <div><b>Frozen trunk</b><span>ImageNet MobileNetV3-Small</span></div>
       <div><b>Descriptor grid</b><span>14 × 14 × 16, the 2 KB breadcrumb</span></div>
@@ -173,37 +173,19 @@
       <div><b>Heads</b><span>soft-argmax offset + learned covariance; arrival; no-match</span></div>
     </div>
     <div class="metrics">
-      <div class="metric"><div class="value"><strong>~1 MB</strong></div><p>int8 student</p></div>
-      <div class="metric"><div class="value"><strong>2 KB</strong></div><p>per breadcrumb</p><small>≈ 21 MB for a 3 h flight</small></div>
-      <div class="metric"><div class="value"><strong>35 M</strong></div><p>multiply-adds per frame</p></div>
-      <div class="metric"><div class="value"><strong>~10 ms</strong></div><p>on a Pi-class CPU</p><small>~1 Hz on a flight-controller MCU (estimate)</small></div>
+      <div class="metric"><div class="value"><strong>~1 MB</strong></div><p>int8 student</p><small>2 KB per breadcrumb · ≈ 21 MB per 3 h</small></div>
+      <div class="metric"><div class="value"><strong>35 M</strong></div><p>multiply-adds per frame</p><small>~10 ms on a Pi-class CPU · ~1 Hz on an FC MCU (est.)</small></div>
+      <div class="metric"><div class="value"><strong>1.82 M</strong></div><p>training frames</p><small>up to 6,000 frames/s on 4 GPUs</small></div>
+      <div class="metric"><div class="value"><strong>13</strong></div><p>real-world areas</p><small>Magdeburg 10 × 10 km + 12 US</small></div>
     </div>
+    <p class="footnote">Simulator: real-world 3D from Google Photorealistic 3D Tiles (Magdeburg) and US lidar + NAIP aerial imagery (12 areas), with physically flown quad trajectories at 80–250 m AGL.</p>
     <div class="notes">
-      <p><b>~25 s.</b> A frozen ImageNet backbone turns the rectified frame into a 14 by 14 grid of 16-number descriptors: that grid is the breadcrumb, 2 KB. We correlate the live grid against the stored one over 225 shifts and read out a sub-cell offset in metres, plus a covariance the EKF uses to weight it, plus "have I arrived" and "this doesn't match". About 35 million multiply-adds: ~10 ms on a Raspberry Pi-class CPU, roughly 1 Hz on a flight-controller MCU (that one is an estimate, not measured), or on a smart-camera module.</p>
+      <p><b>~35 s.</b> A frozen ImageNet backbone turns the rectified frame into a 14 by 14 grid of 16-number descriptors: that grid is the breadcrumb, 2 KB. We correlate the live grid against the stored one over 225 shifts and read out an offset in metres, plus a covariance the EKF uses to weight it, plus "arrived" and "no match". About 35 million multiply-adds: ~10 ms on a Pi-class CPU, roughly 1 Hz on a flight-controller MCU (an estimate, not measured), or on a smart-camera module.</p>
+      <p>We trained it in our own simulator on real-world 3D: Google's photorealistic tiles for 10 by 10 km near Magdeburg and US lidar plus aerial imagery for 12 more areas, with physically flown trajectories at 80 to 250 m. 1.82 million frames, rendered at up to 6,000 a second on four GPUs.</p>
     </div>
   </section>
 
-  <!-- ============================================================ 7. SIM + DATA -->
-  <section class="slide s-sim" data-title="Simulator and data" data-time="20">
-    <p class="eyebrow">Simulator and data</p>
-    <h2>Real terrain, simulated flights</h2>
-    <div class="row" style="grid-template-columns: 1fr 1fr; gap: 40px;">
-      <figure><img src="assets/img/sim_village.jpg" alt="Village rendered from Google Photorealistic 3D Tiles"></figure>
-      <figure><img src="assets/img/rectify.jpg" alt="Rectification examples: raw frame, levelled, north-up and scaled, reference"></figure>
-    </div>
-    <p class="caption"><span class="figure-label">Left:</span> Magdeburg, Google Photorealistic 3D Tiles. <span class="figure-label">Right:</span> rectification on a US area (lidar + NAIP aerial), raw frame → levelled → north-up and scaled → reference.</p>
-    <div class="metrics" style="margin-top:28px; padding:30px 0">
-      <div class="metric"><div class="value" style="font-size:60px"><strong>13</strong></div><p>areas: Magdeburg 10 × 10 km + 12 US</p></div>
-      <div class="metric"><div class="value" style="font-size:60px">80–250 m</div><p>AGL, physically flown quad trajectories</p></div>
-      <div class="metric"><div class="value" style="font-size:60px"><strong>1.82 M</strong></div><p>training frames</p></div>
-      <div class="metric"><div class="value" style="font-size:60px">6,000/s</div><p>frames rendered on 4 GPUs</p></div>
-    </div>
-    <div class="notes">
-      <p><b>~20 s.</b> We built the simulator ourselves on real-world 3D: Google's photorealistic tiles for a 10 by 10 km area near Magdeburg, and US lidar plus NAIP aerial imagery for 12 more areas. Quadcopter trajectories are physically flown at 80 to 250 m. We rendered 1.82 million training frames at up to 6,000 frames a second on four GPUs.</p>
-    </div>
-  </section>
-
-  <!-- ============================================================ 8. LIVE: OURS -->
+  <!-- ============================================================ 7. LIVE: OURS -->
   <!-- Live-model hook: add data-demo-src="live/?embed=1" to switch this slide to the live/ page (wgpeng/live-model). -->
   <section class="slide s-demo" data-demo="ours" data-title="Live: our system" data-time="40">
     <div>
@@ -215,7 +197,7 @@
     </div>
   </section>
 
-  <!-- ============================================================ 9. WHAT THE DRONE SEES -->
+  <!-- ============================================================ 8. WHAT THE DRONE SEES -->
   <section class="slide s-video" data-title="What the drone sees" data-time="20">
     <h2>What the drone sees on the way back</h2>
     <figure>
@@ -227,14 +209,15 @@
     </div>
   </section>
 
-  <!-- ============================================================ 10. RESULTS -->
-  <section class="slide s-results" data-steps="1" data-title="Results" data-time="25">
+  <!-- ============================================================ 9. RESULTS -->
+  <section class="slide s-results" data-steps="1" data-title="Results" data-time="30">
     <p class="eyebrow">Results · closed-loop return to home</p>
     <h2>32 of 32 missions home within 10 m</h2>
-    <div class="metrics" style="padding:32px 0">
-      <div class="metric"><div class="value"><strong>32</strong><span>vs</span>0</div><p>missions home within 10 m<br>ours vs stock PX4</p></div>
+    <div class="metrics tight" style="padding:28px 0">
+      <div class="metric"><div class="value"><strong>32</strong><span>vs</span>0</div><p>home within 10 m</p><small>ours vs stock PX4</small></div>
       <div class="metric"><div class="value"><strong>3.3 m</strong><span>vs</span>847 m</div><p>median distance from home</p><small>p90 7.5 m vs 4.2 km</small></div>
-      <div class="metric"><div class="value"><strong>3.1 m</strong></div><p>median position error during the return</p><small>real PX4 EKF2, same fixes: 3.8 m</small></div>
+      <div class="metric"><div class="value"><strong>3.1 m</strong></div><p>position error, return</p><small>PX4 EKF2 replay: 3.8 m</small></div>
+      <div class="metric"><div class="value"><strong>0.02%</strong></div><p>confident-wrong fixes</p><small>85% inside 2σ (ideal 86%)</small></div>
     </div>
     <figure class="step" data-step="1" style="margin-top:28px">
 <!-- results-chart:start -->
@@ -327,31 +310,12 @@
     </figure>
     <p class="footnote">32 missions over Magdeburg: 1–4 km out, 100–200 m AGL, wind up to 6 m/s with gusts. GPS jammed at the turnaround. Model v2. Stock = PX4 EKF2 replay of the same flights. Magdeburg terrain was in training (different flights); see held-out test.</p>
     <div class="notes">
-      <p><b>~25 s · 1 click.</b> Every one of 32 missions gets home within 10 m; median 3.3 m. Stock PX4 gets none of them home. During the return our position error is about 3 m. (click) Each dot is one mission: ours all sit left of the 10 m line, stock spreads from 100 m to 8 km. And it isn't an artifact of our own EKF: feeding the same fixes through real PX4 EKF2 gives 3.8 m vs 3.5 m in our twin.</p>
+      <p><b>~25 s · 1 click.</b> Every one of 32 missions gets home within 10 m; median 3.3 m. Stock PX4 gets none of them home. During the return our position error is about 3 m. The model's uncertainty is honest: only 0.02% of fixes were confidently wrong, and 85% of errors fall inside its 2-sigma ellipse where 86% should. (click) Each dot is one mission: ours all sit left of the 10 m line, stock spreads from 100 m to 8 km. And it isn't an artifact of our own EKF: feeding the same fixes through real PX4 EKF2 gives 3.8 m vs 3.5 m in our twin.</p>
     </div>
   </section>
 
-  <!-- ============================================================ 11. CALIBRATION -->
-  <section class="slide s-calib" data-title="Calibrated uncertainty" data-time="15">
-    <p class="eyebrow">Results · offline</p>
-    <h2>Its uncertainty is honest</h2>
-    <table style="max-width:1400px">
-      <thead><tr><th></th><th>Ours</th><th>Ideal</th></tr></thead>
-      <tbody>
-        <tr><td>Offset error, median</td><td class="hl">4.9 m</td><td>0</td></tr>
-        <tr><td>Errors inside 1σ</td><td class="hl">37%</td><td>39%</td></tr>
-        <tr><td>Errors inside 2σ</td><td class="hl">85%</td><td>86%</td></tr>
-        <tr><td>Confident but wrong fixes <span class="sub">closed loop</span></td><td class="hl">0.02%</td><td>0</td></tr>
-      </tbody>
-    </table>
-    <p class="caption" style="max-width:1400px">σ is the model's own 2D covariance (1σ and 2σ ellipses: 39% and 86% for a Gaussian). Confident-wrong = a fix more than 3σ (Mahalanobis) from the truth.</p>
-    <div class="notes">
-      <p><b>~15 s.</b> The EKF trusts the model only as much as the model's own uncertainty says. That uncertainty is calibrated: 37% of errors fall inside 1 sigma where 39% should, 85% inside 2 sigma vs 86%. In closed loop only 0.02% of fixes were confidently wrong.</p>
-    </div>
-  </section>
-
-  <!-- ============================================================ 12. HELD-OUT -->
-  <section class="slide s-heldout" data-title="Unseen country" data-time="20">
+  <!-- ============================================================ 10. HELD-OUT -->
+  <section class="slide s-heldout" data-title="Unseen country" data-time="25">
     <p class="eyebrow">Generalisation · Magdeburg held out of training</p>
     <h2>It works in a country it never saw</h2>
     <p class="lead" style="font-size:34px; margin-bottom:36px">Trained on US terrain only. One threshold is retuned on ~50 local flights.</p>
@@ -364,7 +328,7 @@
           <tr><td>Offset error, median <span class="sub">offline</span></td><td class="hl">5.3 m</td><td>5.0 m</td></tr>
           <tr><td>Errors inside 1σ <span class="sub">ideal 39%</span></td><td class="hl">38%</td><td>37%</td></tr>
           <tr><td>False fixes <span class="sub">5.3% with the US threshold</span></td><td class="hl">1.0%</td><td>–</td></tr>
-          <tr class="tbd"><td>Complex routes, home within 10 m</td><td class="hl">running</td><td>–</td></tr>
+          <tr><td>Complex routes, home <span class="sub">median / p90</span></td><td class="hl">32 / 32 · 3.2 / 4.6 m</td><td>32 / 32 · 2.5 / 3.6 m</td></tr>
         </tbody>
       </table>
       <figure>
@@ -392,15 +356,15 @@
 <text x="230" y="470" class="name">Self-crossing</text>
 </svg>
 <!-- routes-figure:end -->
-        <figcaption><span class="figure-label">Complex routes, running now:</span> 2.3–5.9 km, altitude changes, some jammed mid-route (✕). ■ home.</figcaption>
+        <figcaption><span class="figure-label">Complex routes,</span> 2.3–5.9 km; ✕ jam, ■ home. Stock PX4: 0 / 32, median 487 m.</figcaption>
       </figure>
     </div>
     <div class="notes">
-      <p><b>~20 s.</b> The obvious question: does it only work because it trained on this terrain? v3 never saw Magdeburg, or Germany at all: it trained on US terrain only. Closed loop it still gets 32 of 32 home, median 3.4 m, p90 7.2 m, essentially the same as the model that trained here. The one thing we retune is the no-match threshold, on about 50 local flights: with the US threshold, 5.3% of fixes are false; retuned, 1.0%. Complex routes, zig-zags, surveys, orbits, are running now. Same 32 missions as the results slide; stock PX4 got 0 of 32 home. A false fix is a wrong fix that gets past the no-match gate. <i>[Update the complex-routes row with final numbers.]</i></p>
+      <p><b>~20 s.</b> The obvious question: does it only work because it trained on this terrain? v3 never saw Magdeburg, or Germany at all: it trained on US terrain only. Closed loop it still gets 32 of 32 home, median 3.4 m, p90 7.2 m, essentially the same as the model that trained here. The one thing we retune is the no-match threshold, on about 50 local flights: with the US threshold, 5.3% of fixes are false; retuned, 1.0%. On complex routes, zig-zags, surveys, orbits, self-crossing, 2.3 to 5.9 km with altitude changes, v3 still gets 32 of 32 home, median 3.2 m; stock PX4 none, median 487 m. Same 32 missions as the results slide; stock PX4 got 0 of 32 home. A false fix is a wrong fix that gets past the no-match gate.</p>
     </div>
   </section>
 
-  <!-- ============================================================ 13. LIMITATIONS -->
+  <!-- ============================================================ 11. LIMITATIONS -->
   <section class="slide s-limits" data-title="Limitations" data-time="15">
     <p class="eyebrow">Limitations</p>
     <h2>What we haven't solved</h2>
@@ -414,7 +378,7 @@
     </div>
   </section>
 
-  <!-- ============================================================ 14. CLOSE -->
+  <!-- ============================================================ 12. CLOSE -->
   <section class="slide s-close" data-title="Close" data-time="5">
     <div style="display:flex; flex-direction:column; justify-content:center; height:100%">
       <p class="eyebrow">Homeward</p>

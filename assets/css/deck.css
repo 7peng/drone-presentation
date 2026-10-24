@@ -143,3 +143,5 @@ table.compact th:first-child, table.compact td:first-child { padding-left: 0; }
 .routes .jam { stroke: var(--warn); stroke-width: 3.5; stroke-linecap: round; fill: none; }
 .routes .name { font: 600 22px var(--heading); fill: var(--ink); }
 .routes .sub { font: 400 18px var(--sans); fill: var(--muted); }
+.metrics.tight .metric .value { font-size: 64px; }
+.metrics.tight .metric p { margin-top: 12px; }

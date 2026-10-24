@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Homeward 3D Replay</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600;700&amp;family=Noto+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cesium@1.146.0/Build/Cesium/Widgets/widgets.css">
+<link rel="stylesheet" href="../assets/css/tokens.css">
+<link rel="stylesheet" href="demo.css">
+<!-- Token: ../config.local.js (git-ignored) sets window.CESIUM_ION_TOKEN. Missing file is fine. -->
+<script src="../config.local.js" onerror="void 0"></script>
+<script src="https://cdn.jsdelivr.net/npm/cesium@1.146.0/Build/Cesium/Cesium.js" onerror="window.__cesiumLoadFailed = true"></script>
+</head>
+<body>
+<div id="cesium"></div>
+
+<div id="hud" hidden>
+  <div class="panel top-left">
+    <p class="eyebrow">Magdeburg Börde, Germany</p>
+    <div class="seg" role="tablist" aria-label="Scenario">
+      <button data-scn="stock" title="1">Stock PX4</button>
+      <button data-scn="ours" title="2">Our system</button>
+    </div>
+  </div>
+
+  <div class="panel top-right">
+    <div class="status" id="status">GPS OK</div>
+    <dl>
+      <dt>Position error</dt><dd id="r-err">0 m</dd>
+      <dt>Distance to home</dt><dd id="r-home">0 m</dd>
+    </dl>
+  </div>
+
+  <div class="legend">
+    <span><i class="sw truth"></i>True path</span>
+    <span><i class="sw est" id="sw-est"></i><b id="lg-est">Estimate</b></span>
+    <span><i class="sw home"></i>Home</span>
+  </div>
+
+  <div id="card" class="card" hidden></div>
+
+  <div class="bar">
+    <button id="b-play" title="Space">Play</button>
+    <div class="scrub">
+      <input id="scrub" type="range" min="0" max="1000" value="0" step="1" aria-label="Mission time">
+      <div class="ticks" id="ticks"></div>
+    </div>
+    <button id="b-speed" title="S">Auto</button>
+    <div class="seg small">
+      <button data-cam="chase" title="C">Chase</button>
+      <button data-cam="orbit" title="C">Orbit</button>
+      <button data-cam="top" title="T">Top-down</button>
+    </div>
+  </div>
+</div>
+
+<div id="fallback" hidden>
+  <video id="fb-video" controls muted playsinline preload="metadata"></video>
+  <div class="fb-msg">
+    <p id="fb-why"></p>
+    <form id="fb-token">
+      <input id="fb-input" type="password" autocomplete="off" placeholder="Paste a restricted Cesium ion token">
+      <button type="submit">Use token</button>
+    </form>
+    <p class="fine">Stored only in this browser (localStorage). See README for how to restrict the token.</p>
+  </div>
+</div>
+
+<div id="loading">Loading 3D tiles…</div>
+
+<script src="demo.js"></script>
+</body>
+</html>

@@ -1,0 +1,3 @@
+# Local Cesium ion token (see README). Never commit it.
+config.local.js
+.DS_Store

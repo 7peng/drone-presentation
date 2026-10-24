@@ -1,0 +1,16 @@
+/* Shared design tokens (deck + live demo). Palette, type pairing and restraint follow
+   spectral-alignment.github.io: Google Sans headings, Noto Sans text, one blue accent, hairlines. */
+:root {
+  --ink: #202630;
+  --muted: #626b76;
+  --faint: #8a929b;
+  --blue: #315c91;
+  --line: #dce2e7;
+  --wash: #f3f6fa;
+  --bg: #ffffff;
+  --warn: #b3261e;      /* used only for "jammed"/failure states */
+  --ok: #2e7d4f;        /* used only for the vision estimate in the 3D demo */
+  --heading: 'Google Sans', Arial, sans-serif;
+  --sans: 'Noto Sans', Arial, sans-serif;
+  --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+}

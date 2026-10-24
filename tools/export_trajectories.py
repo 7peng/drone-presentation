@@ -241,11 +241,14 @@ def export_stock_cx(fr, md, mid, tau=2.0, hold=6.0):
     }
 
 
+CX = os.environ.get("CX", "cx_011")  # demo mission (complex zig-zag), shared with live/
+
+
 def main():
     fr = Frame()
     os.makedirs(OUT, exist_ok=True)
     jobs = [
-        ("stock_cx001.json", lambda: export_stock_cx(fr, f"{WORK}/eval_cl/sweep_cx_v3/cx_001", "stock_px4_cx_001")),
+        ("stock_cx.json", lambda: export_stock_cx(fr, f"{WORK}/eval_cl/sweep_cx_v3/{CX}", f"stock_px4_{CX}")),
         # v3: trained without Magdeburg (US areas only); no-match gate calibrated on local flights (deploy_mdcal)
         ("ours.json", lambda: export_ours(fr, f"{WORK}/eval_cl/sweep_v3/mission_012", "ours_v3_mission_012",
                                           "Our system (v3, Magdeburg never seen in training)")),

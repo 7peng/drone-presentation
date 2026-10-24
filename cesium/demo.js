@@ -14,7 +14,7 @@
   // ours = model v3 (Magdeburg held out of training). Fallback videos are pre-rendered (rth video: model v1).
   const SCN = {
     // stock = PX4 EKF2 replay of complex zig-zag cx_001 (2.7 km, jammed at 0.85 of the route)
-    stock: { file: 'data/stock_cx001.json', video: '../media/jamming_failure.mp4', poster: '../media/jamming_failure_poster.jpg' },
+    stock: { file: 'data/stock_cx.json', video: '../media/jamming_failure.mp4', poster: '../media/jamming_failure_poster.jpg' },
     ours: { file: 'data/ours.json', video: '../media/rth_mission012.mp4', poster: '../media/rth_mission012_poster.jpg' },
   };
   const SPEEDS = ['auto', 1, 5, 10, 20, 40];
@@ -230,7 +230,7 @@
     const s = SPEEDS[speedIdx];
     if (s !== 'auto') return s;
     // talk pacing: the outbound (GPS OK) plays at 2x the speed of everything after the jam
-    return simT < D.ev.jam ? 16 : 8;
+    return simT < D.ev.jam ? 24 : 12;
   }
 
   // ---------------------------------------------------------------- camera

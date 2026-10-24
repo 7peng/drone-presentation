@@ -45,9 +45,9 @@
     <div class="notes">
       <p><b>~50 s.</b> Keys: <b>Space</b> play/pause · <b>T</b> top-down · <b>C</b> chase/orbit · <b>,</b> <b>.</b> scrub · <b>PageDown</b> next slide.</p>
       <ul>
-        <li>Real terrain, real PX4 EKF2. A 2.7 km zig-zag survey flight. White is where the drone really is; red is where its estimator thinks it is.</li>
-        <li>GPS is jammed at 85% of the route. The drone turns for home on IMU, baro and compass. The outbound plays at double speed.</li>
-        <li>Watch the red ghost and the drone separate. Press T at the end: it thinks it's home, but it's ~180 m away.</li>
+        <li>Real terrain, real PX4 EKF2. A 4.4 km zig-zag survey flight. White is where the drone really is; red is where its estimator thinks it is.</li>
+        <li>GPS is jammed at the far end. The drone turns for home on IMU, baro and compass. The outbound plays at double speed.</li>
+        <li>Watch the red ghost and the drone separate. Press T at the end: it thinks it's home, but it's 1.7 km away.</li>
         <li>Caveat: stock PX4 actually flags the position invalid 5 s after the jam and would descend where it is; we keep it flying to show the drift.</li>
       </ul>
     </div>
@@ -113,11 +113,11 @@
   </section>
 
   <!-- ============================================================ 4. LIVE (in-browser model) -->
-  <section class="slide s-demo" data-demo="ours" data-demo-src="live/?embed=1&amp;mission=cx_001&amp;start=jam" data-title="Our system, live" data-time="60">
+  <section class="slide s-demo" data-demo="ours" data-demo-src="live/?embed=1&amp;mission=cx_011&amp;start=jam" data-title="Our system, live" data-time="60">
     <div>
       <p class="eyebrow">Live</p>
       <h2>Loading the live model…</h2>
-      <p class="muted">If it doesn't load, open <strong>live/?mission=cx_001&amp;start=jam</strong> directly.</p>
+      <p class="muted">If it doesn't load, open <strong>live/?mission=cx_011&amp;start=jam</strong> directly.</p>
     </div>
     <div class="notes">
       <p><b>~60 s.</b> Same mission, same jam point. Now the model runs live in this browser on every frame and flies the drone home on its own fixes. Point at the live frame vs the breadcrumb, the offset arrow, and the estimate staying on the drone. It arrives home within a few metres.</p>

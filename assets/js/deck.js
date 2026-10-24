@@ -17,6 +17,9 @@ const channel = 'BroadcastChannel' in window ? new BroadcastChannel('deck') : nu
 if (new URLSearchParams(location.search).has('draft')) document.body.classList.add('draft');
 
 let idx = 0;
+let demoScenario = null;
+const sendScenario = () => demoFrame.contentWindow?.postMessage({ type: 'demo-scenario', scenario: demoScenario }, '*');
+demoFrame.addEventListener('load', () => { if (demoScenario) setTimeout(sendScenario, 50); });
 let step = 0;
 let timerStart = null;
 
@@ -41,8 +44,20 @@ function render() {
     demoFrame.src = demoFrame.dataset.src;
   }
   demoLayer.classList.toggle('is-active', isDemo);
-  if (isDemo) setTimeout(() => demoFrame.contentWindow?.focus(), 50);
-  else window.focus();
+  if (isDemo) {
+    // One iframe serves every demo slide; data-demo="stock" | "ours" picks the scenario.
+    const scenario = slides[idx].dataset.demo;
+    if (scenario && scenario !== demoScenario) { demoScenario = scenario; sendScenario(); }
+    setTimeout(() => demoFrame.contentWindow?.focus(), 50);
+  } else window.focus();
+
+  // Slide videos: load lazily, play only while their slide is showing.
+  slides.forEach((el, i) => el.querySelectorAll('video').forEach((v) => {
+    if (i === idx) {
+      if (!v.src && v.dataset.src) v.src = v.dataset.src;
+      v.play().catch(() => {});
+    } else if (!v.paused) v.pause();
+  }));
 
   progress.style.width = `${(idx / (slides.length - 1)) * 100}%`;
   slideNum.textContent = `${idx + 1} / ${slides.length}`;

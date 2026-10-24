@@ -4,290 +4,308 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Homeward</title>
-<meta name="description" content="Learned return-to-launch for drones under GPS jamming — hackathon presentation and live 3D demo.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%230a0f1c'/%3E%3Cpath d='M8 20 16 9l8 11' fill='none' stroke='%2339d0ff' stroke-width='3'/%3E%3C/svg%3E">
+<meta name="description" content="Vision breadcrumbs: getting a drone home under GPS jamming. Hackathon deck with a live CesiumJS replay.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23202630'/%3E%3Cpath d='M8 20 16 10l8 10' fill='none' stroke='%23fff' stroke-width='3'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600;700&amp;family=Noto+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/css/tokens.css">
 <link rel="stylesheet" href="assets/css/deck.css">
 </head>
 <body>
 
-<!-- Shared SVG symbols -->
-<svg width="0" height="0" style="position:absolute" aria-hidden="true">
-  <defs>
-    <symbol id="quad" viewBox="-50 -50 100 100">
-      <g stroke="currentColor" stroke-width="6" stroke-linecap="round"><line x1="-30" y1="-30" x2="30" y2="30"/><line x1="30" y1="-30" x2="-30" y2="30"/></g>
-      <g fill="none" stroke="currentColor" stroke-width="4" opacity=".85">
-        <circle cx="-32" cy="-32" r="15"/><circle cx="32" cy="-32" r="15"/><circle cx="-32" cy="32" r="15"/><circle cx="32" cy="32" r="15"/>
-      </g>
-      <rect x="-13" y="-17" width="26" height="34" rx="7" fill="currentColor"/>
-    </symbol>
-    <symbol id="sat" viewBox="-50 -30 100 60">
-      <rect x="-12" y="-14" width="24" height="28" rx="4" fill="#cfd8ea"/>
-      <rect x="-48" y="-9" width="30" height="18" fill="#3a6ea8" stroke="#8fb4e0" stroke-width="2"/>
-      <rect x="18" y="-9" width="30" height="18" fill="#3a6ea8" stroke="#8fb4e0" stroke-width="2"/>
-    </symbol>
-    <symbol id="pad" viewBox="-50 -50 100 100">
-      <circle r="46" fill="#14243a" stroke="#2ee59d" stroke-width="4"/>
-      <text y="17" text-anchor="middle" font-family="ui-sans-serif, system-ui" font-weight="800" font-size="48" fill="#2ee59d">H</text>
-    </symbol>
-  </defs>
-</svg>
-
 <div id="viewport">
 <div id="stage">
 
-  <!-- ================================================================ 1. TITLE -->
-  <section class="slide s-title" data-title="Title" data-time="15">
-    <p class="kicker">Hackathon 2026 · <span class="tbd">Track name</span></p>
-    <h1 class="tbd">Home<span>ward</span></h1>
-    <p class="lede">Teaching drones to <strong>find their way home</strong><br>when GPS goes dark.</p>
-    <p class="team tbd">Team Name — Alice · Bob · Carol · Dan</p>
-
-    <svg class="orbit" viewBox="0 0 760 760" aria-hidden="true">
-      <g fill="none" stroke="#1d2b48" stroke-width="2">
-        <circle cx="380" cy="380" r="120"/><circle cx="380" cy="380" r="230"/><circle cx="380" cy="380" r="340"/>
-      </g>
-      <path id="title-route" d="M380 380 C 420 200, 640 170, 640 330 S 520 600, 380 380" fill="none" stroke="#39d0ff" stroke-width="3" stroke-dasharray="10 12" opacity=".7"/>
-      <use href="#pad" x="340" y="340" width="80" height="80"/>
-      <g color="#39d0ff">
-        <use href="#quad" x="-28" y="-28" width="56" height="56">
-        </use>
-        <animateMotion dur="9s" repeatCount="indefinite" rotate="auto"><mpath href="#title-route"/></animateMotion>
-      </g>
-    </svg>
-
-    <div class="notes">
-      <p><b>~15s.</b> Hi, we're <i>[team]</i>. Drones depend on GPS to get home. We built a model that gets them home when GPS is jammed.</p>
-    </div>
-  </section>
-
-  <!-- ================================================================ 2. PROBLEM -->
-  <section class="slide s-problem" data-steps="2" data-title="The problem" data-time="40">
-    <p class="kicker">The problem</p>
-    <h2>GPS is a single point of failure</h2>
-    <div class="row" style="align-items:flex-start; margin-top: 30px;">
-      <div style="width:620px">
-        <div class="caption-stack" style="height:420px">
-          <p class="cap0">Every drone's <strong>return-to-launch</strong> failsafe assumes it knows where it is. That comes from GPS.</p>
-          <p class="cap1">A cheap jammer <strong class="c-jam">drowns out</strong> satellite signals that are weaker than a light bulb seen from 20,000 km away.</p>
-          <p class="cap2">Without a fix, the drone <strong>dead-reckons</strong>. Small IMU errors compound, and it ends up <strong class="c-base">lost, drifting, or down</strong> in the wrong place.</p>
-        </div>
-        <p class="tbd" style="font-size:26px;color:#5d6d8c;margin-top:40px">Add one cited stat on jamming frequency, e.g. from a 2025 regulator or ADS-B report.</p>
+  <!-- ============================================================ 1. TITLE -->
+  <section class="slide s-title" data-title="Title" data-time="10">
+    <div class="hero">
+      <div>
+        <p class="eyebrow tbd">Hackathon 2026 · Track name</p>
+        <h1>Homeward</h1>
+        <p class="lead">Getting a drone home when GPS is jammed, using its downward camera and the way it flew out.</p>
+        <p class="byline tbd"><strong>Team name</strong> · Name · Name · Name</p>
       </div>
-
-      <svg class="diagram" viewBox="0 0 1000 640" style="width:1000px">
-        <!-- satellites + links -->
-        <g>
-          <line class="sat-link" x1="150" y1="80" x2="380" y2="330"/>
-          <line class="sat-link" x1="500" y1="50" x2="380" y2="330"/>
-          <line class="sat-link" x1="860" y1="90" x2="380" y2="330"/>
-          <use href="#sat" x="100" y="50" width="100" height="60"/>
-          <use href="#sat" x="450" y="20" width="100" height="60"/>
-          <use href="#sat" x="810" y="60" width="100" height="60"/>
-        </g>
-
-        <!-- home -->
-        <use href="#pad" x="120" y="490" width="110" height="110"/>
-        <text class="home-tag" x="175" y="630" text-anchor="middle" fill="#2ee59d" font-family="ui-monospace, Menlo, monospace" font-size="20" font-weight="700">HOME</text>
-
-        <!-- jammer -->
-        <g class="jammer">
-          <circle class="jam-ring" cx="820" cy="470" r="130" fill="none" stroke="#ff3d5e" stroke-width="4"/>
-          <circle class="jam-ring r2" cx="820" cy="470" r="130" fill="none" stroke="#ff3d5e" stroke-width="4"/>
-          <circle class="jam-ring r3" cx="820" cy="470" r="130" fill="none" stroke="#ff3d5e" stroke-width="4"/>
-          <path d="M820 420 L792 540 M820 420 L848 540 M800 505 L840 505 M806 475 L834 475" stroke="#ff3d5e" stroke-width="5" fill="none" stroke-linecap="round"/>
-          <circle cx="820" cy="414" r="9" fill="#ff3d5e"/>
-          <text x="820" y="580" text-anchor="middle" fill="#ff3d5e" font-family="ui-monospace, Menlo, monospace" font-size="20" font-weight="700">JAMMER</text>
-        </g>
-
-        <!-- drift -->
-        <line class="drift-path" x1="380" y1="330" x2="630" y2="505" stroke="#ff9a3c" stroke-width="3" stroke-dasharray="900"/>
-        <line class="drift-path" x1="380" y1="330" x2="175" y2="545" stroke="#2ee59d" stroke-width="2" stroke-dasharray="6 10" opacity=".5"/>
-
-        <g class="drone-mover">
-          <circle class="uncert" cx="380" cy="330" r="120" fill="rgba(255,154,60,.08)" stroke="#ff9a3c" stroke-width="2" stroke-dasharray="6 8"/>
-          <g color="#e8eef9"><use href="#quad" x="335" y="285" width="90" height="90"/></g>
-          <g font-family="ui-monospace, Menlo, monospace" font-size="20" font-weight="700">
-            <text class="gps-ok" x="380" y="262" text-anchor="middle" fill="#2ee59d">GPS ✓ 3D FIX</text>
-            <text class="gps-bad" x="380" y="262" text-anchor="middle" fill="#ff3d5e">GPS ✕ NO FIX</text>
-          </g>
-        </g>
-        <text class="lost-tag" x="630" y="625" text-anchor="middle" fill="#ff9a3c" font-family="ui-monospace, Menlo, monospace" font-size="22" font-weight="700">position error: 100+ m</text>
-      </svg>
+      <figure>
+        <img src="assets/img/sim_horizon.jpg" alt="Farmland of the Magdeburg Börde rendered from Google Photorealistic 3D Tiles">
+        <figcaption><span class="figure-label">Magdeburg Börde, 150 m up.</span> Every flight in this talk is simulated over real 3D terrain (Google Photorealistic 3D Tiles).</figcaption>
+      </figure>
     </div>
-
     <div class="notes">
-      <p><b>~40s · 2 clicks.</b></p>
+      <p><b>~10 s.</b> We built a way for a drone to fly home when GPS is jammed, using only the camera it already has and what it saw on the way out.</p>
+    </div>
+  </section>
+
+  <!-- ============================================================ 2. PROBLEM -->
+  <section class="slide s-problem" data-steps="3" data-title="The problem" data-time="30">
+    <p class="eyebrow">The problem</p>
+    <h2>Jam the GPS and stock PX4 no longer knows where it is</h2>
+    <div class="metrics">
+      <div class="metric">
+        <div class="value"><strong>5 s</strong></div>
+        <p>until EKF2 flags the position invalid and the failsafe descends</p>
+      </div>
+      <div class="metric step" data-step="1">
+        <div class="value">60<span>→</span><strong>500 m</strong></div>
+        <p>inertial-only drift at +60 s and +3 min</p>
+      </div>
+      <div class="metric step" data-step="2">
+        <div class="value"><strong>847 m</strong></div>
+        <p>median miss if it flew home anyway</p>
+        <small>32 missions · p90 4.2 km</small>
+      </div>
+      <div class="metric step" data-step="3">
+        <div class="value"><strong>Never</strong></div>
+        <p>detects a slow GPS spoof (1 m/s drag)</p>
+      </div>
+    </div>
+    <p class="footnote">Real PX4 EKF2 (replay harness) on simulated IMU, baro, compass and GPS logs. Drift numbers are medians across noise seeds.</p>
+    <div class="notes">
+      <p><b>~30 s · 3 clicks.</b></p>
       <ul>
-        <li>(start) Return-to-launch is the universal safety net, and it needs GPS.</li>
-        <li>(click) Jammers are cheap and common near conflict zones, airports and events. The GPS signal is extremely faint, so it's easy to drown out.</li>
-        <li>(click) The drone falls back to its IMU. Errors grow quadratically, and within a minute it's 100 m off and lands somewhere it shouldn't.</li>
+        <li>Under jamming, PX4's estimator gives up after 5 seconds, declares position invalid, and the failsafe descends wherever it is.</li>
+        <li>(click) If you ignore that and fly on the IMU alone, the error is ~60 m after a minute, ~500 m after three.</li>
+        <li>(click) Over our 32 test missions it would have missed home by a median of 847 m, and by 4 km in the worst 10%.</li>
+        <li>(click) Spoofing is worse: a slow 1 m/s drag is never detected. The drone follows the fake position.</li>
       </ul>
     </div>
   </section>
 
-  <!-- ================================================================ 3. MODEL -->
-  <section class="slide s-model" data-steps="2" data-title="Our model" data-time="45">
-    <p class="kicker">Our approach</p>
-    <h2>A learned navigator that doesn't need GPS</h2>
-
-    <svg class="diagram pipe" viewBox="0 0 1640 620" style="margin-top:40px">
-      <defs>
-        <path id="w1" d="M300 70  C 420 70,  420 300, 520 300"/>
-        <path id="w2" d="M300 185 C 420 185, 420 310, 520 310"/>
-        <path id="w3" d="M300 300 C 420 300, 420 320, 520 320"/>
-        <path id="w4" d="M300 415 C 420 415, 420 330, 520 330"/>
-        <path id="w5" d="M300 530 C 420 530, 420 340, 520 340"/>
-        <path id="o1" d="M1000 260 C 1120 260, 1120 170, 1240 170"/>
-        <path id="o2" d="M1000 380 C 1120 380, 1120 450, 1240 450"/>
-      </defs>
-
-      <!-- inputs (edit to match your actual observation space) -->
-      <g class="col-in tbd">
-        <g class="node"><rect x="0" y="25"  width="300" height="90" rx="14"/><text x="24" y="64">IMU</text><text class="sub" x="24" y="94">accel · gyro · 200 Hz</text></g>
-        <g class="node"><rect x="0" y="140" width="300" height="90" rx="14"/><text x="24" y="179">Down camera</text><text class="sub" x="24" y="209">optical flow · features</text></g>
-        <g class="node"><rect x="0" y="255" width="300" height="90" rx="14"/><text x="24" y="294">Baro + compass</text><text class="sub" x="24" y="324">altitude · heading</text></g>
-        <g class="node"><rect x="0" y="370" width="300" height="90" rx="14"/><text x="24" y="409">Last GPS fix</text><text class="sub" x="24" y="439">home vector at jam</text></g>
-        <g class="node"><rect x="0" y="485" width="300" height="90" rx="14"/><text x="24" y="524">Flight state</text><text class="sub" x="24" y="554">velocity · attitude</text></g>
-      </g>
-
-      <g class="wires-1">
-        <use href="#w1" class="wire"/><use href="#w2" class="wire"/><use href="#w3" class="wire"/><use href="#w4" class="wire"/><use href="#w5" class="wire"/>
-        <circle r="7" class="pulse"><animateMotion dur="1.4s" repeatCount="indefinite"><mpath href="#w1"/></animateMotion></circle>
-        <circle r="7" class="pulse"><animateMotion dur="1.4s" begin=".3s" repeatCount="indefinite"><mpath href="#w2"/></animateMotion></circle>
-        <circle r="7" class="pulse"><animateMotion dur="1.4s" begin=".6s" repeatCount="indefinite"><mpath href="#w3"/></animateMotion></circle>
-        <circle r="7" class="pulse"><animateMotion dur="1.4s" begin=".15s" repeatCount="indefinite"><mpath href="#w4"/></animateMotion></circle>
-        <circle r="7" class="pulse"><animateMotion dur="1.4s" begin=".45s" repeatCount="indefinite"><mpath href="#w5"/></animateMotion></circle>
-      </g>
-
-      <!-- core -->
-      <g class="col-core tbd">
-        <rect x="520" y="110" width="480" height="420" rx="22" fill="none" stroke="#39d0ff" stroke-width="2" stroke-dasharray="4 8" opacity=".6"/>
-        <text x="540" y="96" fill="#39d0ff" style="font:600 20px ui-monospace, Menlo, monospace; letter-spacing:.12em">ON-BOARD · &lt;5 MS / STEP</text>
-        <g class="node core"><rect x="560" y="150" width="400" height="130" rx="16"/><text x="590" y="205">Sensor encoder</text><text class="sub" x="590" y="242">CNN + MLP → latent</text></g>
-        <g class="node core"><rect x="560" y="350" width="400" height="140" rx="16"/><text x="590" y="405">Recurrent policy</text><text class="sub" x="590" y="442">GRU · remembers the path out</text></g>
-        <line x1="760" y1="280" x2="760" y2="350" stroke="#39d0ff" stroke-width="3"/>
-        <circle r="6" class="pulse"><animateMotion dur=".8s" repeatCount="indefinite" path="M760 280 L760 350"/></circle>
-        <path class="mem-loop" d="M960 400 C 1010 400, 1010 470, 960 470"/>
-        <text x="975" y="510" fill="#8b9bb8" style="font:500 17px ui-monospace, Menlo, monospace">h(t)</text>
-      </g>
-
-      <g class="wires-2">
-        <use href="#o1" class="wire"/><use href="#o2" class="wire"/>
-        <circle r="7" class="pulse"><animateMotion dur="1.2s" repeatCount="indefinite"><mpath href="#o1"/></animateMotion></circle>
-        <circle r="7" class="pulse"><animateMotion dur="1.2s" begin=".6s" repeatCount="indefinite"><mpath href="#o2"/></animateMotion></circle>
-      </g>
-
-      <!-- outputs -->
-      <g class="col-out tbd">
-        <g class="node"><rect x="1240" y="110" width="400" height="120" rx="14" style="stroke:#2ee59d"/><text x="1266" y="160">Velocity + yaw setpoints</text><text class="sub" x="1266" y="194">→ PX4 offboard @ 20 Hz</text></g>
-        <g class="node"><rect x="1240" y="390" width="400" height="120" rx="14" style="stroke:#2ee59d"/><text x="1266" y="440">Home estimate ± σ</text><text class="sub" x="1266" y="474">confidence → land / loiter</text></g>
-      </g>
-    </svg>
-
-    <div class="notes">
-      <p><b>~45s · 2 clicks.</b> <i>Edit the boxes to match your real architecture.</i></p>
-      <ul>
-        <li>(start) Inputs: only sensors that can't be jammed. IMU, camera, baro and compass, plus the last good GPS fix.</li>
-        <li>(click) An encoder fuses them. A recurrent policy keeps memory of the path flown out, which is what lets it retrace the way home.</li>
-        <li>(click) It outputs velocity commands straight to the flight controller, plus its own confidence. If confidence drops it loiters instead of guessing.</li>
-      </ul>
-    </div>
-  </section>
-
-  <!-- ================================================================ 4. TRAINING -->
-  <section class="slide s-train" data-steps="3" data-title="Training" data-time="45">
-    <p class="kicker">Training</p>
-    <h2>Millions of jammed flights in simulation</h2>
-    <div class="row" style="margin-top:20px">
-      <svg class="diagram loop" viewBox="0 0 1000 720" style="width:1000px">
-        <circle class="ring" cx="500" cy="380" r="270"/>
-        <circle class="ring-flow" cx="500" cy="380" r="270" pathLength="1000"/>
-        <g class="node n1"><circle cx="500" cy="110" r="98"/><text x="500" y="104">Simulator</text><text class="sub" x="500" y="134">terrain · wind</text></g>
-        <g class="node n2"><circle cx="757" cy="297" r="98"/><text x="757" y="291">Jam</text><text class="sub" x="757" y="321">random onset</text></g>
-        <g class="node n3"><circle cx="659" cy="598" r="98"/><text x="659" y="592">Rollouts</text><text class="sub" x="659" y="622">parallel envs</text></g>
-        <g class="node n4"><circle cx="341" cy="598" r="98"/><text x="341" y="592">Reward</text><text class="sub" x="341" y="622">dist · landing</text></g>
-        <g class="node n5"><circle cx="243" cy="297" r="98"/><text x="243" y="291">Update</text><text class="sub" x="243" y="321">PPO</text></g>
-        <text x="500" y="370" text-anchor="middle" fill="#39d0ff" style="font:700 54px ui-monospace, Menlo, monospace">RL</text>
-        <text x="500" y="410" text-anchor="middle" fill="#8b9bb8" style="font:500 20px ui-monospace, Menlo, monospace">closed loop</text>
-      </svg>
-      <ul class="facts col">
-        <li class="step tbd" data-step="1"><b>Randomized jamming</b>Jam onset, duration and strength; wind; sensor noise; terrain.</li>
-        <li class="step tbd" data-step="2"><b>12M steps</b>across 40k procedurally generated flights.</li>
-        <li class="step tbd" data-step="3"><b>Reward</b>Closing distance to home, plus a large bonus for landing within 3 m and penalties for energy and crashes.</li>
-      </ul>
-    </div>
-
-    <div class="notes">
-      <p><b>~45s · 3 clicks.</b> <i>Replace numbers with your real ones.</i></p>
-      <ul>
-        <li>(start) We train with reinforcement learning in simulation, since you can't jam real GPS legally.</li>
-        <li>(click) Every episode jams at a random moment, so the model can't memorize a route.</li>
-        <li>(click) Scale: [N] steps, [M] flights, [hours] on [GPU].</li>
-        <li>(click) The reward is simple: get closer to home and land accurately.</li>
-      </ul>
-    </div>
-  </section>
-
-  <!-- ================================================================ 5. LIVE DEMO -->
-  <section class="slide s-demo" data-demo data-title="Live demo" data-time="90">
+  <!-- ============================================================ 3. LIVE: STOCK -->
+  <section class="slide s-demo" data-demo="stock" data-title="Live: stock PX4" data-time="30">
     <div>
-      <p class="kicker">Live demo</p>
-      <h2>Loading 3D simulation…</h2>
-      <p class="lede">If this doesn't load, open <span class="mono hl">demo/</span> directly.</p>
+      <p class="eyebrow">Live replay</p>
+      <h2>Loading the 3D replay…</h2>
+      <p class="muted">If it doesn't load, open <strong>cesium/</strong> directly.</p>
     </div>
     <div class="notes">
-      <p><b>~90s.</b> Demo keys: <b>Space</b> start/pause · <b>J</b> jam now · <b>C</b> camera · <b>B</b> hide baseline · <b>R</b> restart · <b>PageDown</b> next slide.</p>
+      <p><b>~30 s.</b> Keys: <b>Space</b> play/pause · <b>T</b> top-down · <b>C</b> chase/orbit · <b>,</b> <b>.</b> scrub · <b>PageDown</b> next slide.</p>
       <ul>
-        <li>Press Space. Both drones take off and fly the same mission with GPS: <span style="color:#39d0ff">ours</span> and a <span style="color:#ff9a3c">standard autopilot</span>.</li>
-        <li>The jammer fires automatically at waypoint 2 (or press J). GPS drops for both, and both trigger return-to-launch.</li>
-        <li>The faint ghost shows where each drone <i>thinks</i> it is. The baseline's ghost drifts off. Ours stays locked on.</li>
-        <li>Press 4 for the top-down view. Ours lands on the pad, the baseline lands ~100 m away.</li>
+        <li>This is a real PX4 EKF2 replay over real 3D terrain. White is where the drone is; red is where it thinks it is.</li>
+        <li>GPS is jammed 2.6 km out. It turns for home on IMU, baro and compass.</li>
+        <li>Press T at the end: it "arrives" home, but it's ~540 m away. Across 10 noise seeds the median miss is 681 m.</li>
+        <li>Honest caveat: stock PX4 would actually descend 5 s after the jam. We disabled that failsafe to show the drift.</li>
       </ul>
     </div>
   </section>
 
-  <!-- ================================================================ 6. RESULTS -->
-  <section class="slide s-results" data-steps="1" data-title="Results" data-time="30">
-    <p class="kicker">Results</p>
-    <h2>Home, even when jammed</h2>
-    <div class="metric-grid tbd">
-      <div class="metric">
-        <h3>RTL success under jamming ↑</h3>
-        <div class="bar ours"><span class="c-ours">Ours</span><div class="track"><div class="fill" style="--w:94%"></div></div><span class="val c-ours">94%</span></div>
-        <div class="bar base"><span class="c-base">GPS-only</span><div class="track"><div class="fill" style="--w:18%"></div></div><span class="val c-base">18%</span></div>
-      </div>
-      <div class="metric">
-        <h3>Median landing error ↓</h3>
-        <div class="bar ours"><span class="c-ours">Ours</span><div class="track"><div class="fill" style="--w:2%"></div></div><span class="val c-ours">2.1 m</span></div>
-        <div class="bar base"><span class="c-base">GPS-only</span><div class="track"><div class="fill" style="--w:80%"></div></div><span class="val c-base">96 m</span></div>
-      </div>
+  <!-- ============================================================ 4. IDEA -->
+  <section class="slide s-idea" data-steps="1" data-title="Vision breadcrumbs" data-time="30">
+    <p class="eyebrow">Our idea</p>
+    <h2>Vision breadcrumbs</h2>
+    <p class="lead">Remember what the ground looked like on the way out. Recognise it on the way back.</p>
+    <div class="steps">
+      <div><b><em>Out · GPS OK</em>Drop breadcrumbs</b><span>Every ~20 m, save a 2 KB descriptor of the downward camera, plus the EKF position.</span></div>
+      <div><b><em>Back · GPS jammed</em>Match the next one</b><span>Rectify the frame (level, north-up, scaled from attitude + baro) and match it to the expected breadcrumb: offset in metres, uncertainty, arrival, no-match.</span></div>
+      <div><b><em>Fuse</em>Into PX4 as vision</b><span>The fix enters PX4 EKF2 through the standard external-vision (VIO) interface. No estimator changes.</span></div>
     </div>
-    <p class="footnote tbd">Placeholder numbers. N = 1,000 held-out simulated flights with randomized jam onset.</p>
-
+    <div class="callout step" data-step="1"><p><strong>Spoofing comes free:</strong> GPS is dropped when it disagrees with vision + IMU by more than 12 m.</p></div>
     <div class="notes">
-      <p><b>~30s · 1 click.</b> (click to animate bars) On held-out flights we get home 94% of the time vs 18%, and land within ~2 m.</p>
+      <p><b>~30 s · 1 click.</b> Hansel and Gretel for drones. Outbound, while GPS still works, we save a tiny fingerprint of the ground every 20 metres, tagged with where we were. On the way back we look down, straighten the image using the flight controller's attitude and the barometer, and ask the model: how far am I from the breadcrumb I expect next? That offset goes into PX4 as if it came from a visual odometry camera. (click) And because vision gives an independent position, a spoofed GPS that drifts away from it gets dropped.</p>
     </div>
   </section>
 
-  <!-- ================================================================ 7. CLOSE -->
-  <section class="slide s-close" data-title="What's next" data-time="15">
-    <p class="kicker">What's next</p>
-    <h2>From sim to sky</h2>
-    <div class="next-list tbd">
-      <div><b>Hardware test</b><span>Fly on a real quad in a shielded or legally jammed test range.</span></div>
-      <div><b>Spoofing</b><span>Detect GPS that's wrong rather than absent.</span></div>
-      <div><b>Fleets</b><span>Share landmarks between drones to cut drift further.</span></div>
-    </div>
-    <p class="url">7peng.github.io/drone-presentation</p>
+  <!-- ============================================================ 5. SYSTEM -->
+  <section class="slide s-system" data-title="System" data-time="20">
+    <p class="eyebrow">System</p>
+    <h2>It plugs into PX4 like a VIO camera</h2>
+    <svg class="sys" viewBox="30 76 1150 490" role="img" aria-label="System diagram: breadcrumbs saved outbound; on the return each frame is rectified, matched to a breadcrumb, and fused by PX4 EKF2 as external vision">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#626b76"/></marker>
+        <marker id="arb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#315c91"/></marker>
+      </defs>
+      <text x="48" y="100" class="h">OUTBOUND · GPS WORKS</text>
+      <rect x="48" y="114" width="190" height="64" rx="6" class="plain"/>
+      <text x="143" y="152" text-anchor="middle" class="t">Camera</text>
+      <rect x="298" y="114" width="250" height="64" rx="6" class="ours"/>
+      <text x="423" y="141" text-anchor="middle" class="t">Save breadcrumb</text>
+      <text x="423" y="162" text-anchor="middle" class="s">2 KB descriptor + EKF2 position</text>
+      <path d="M238,146 H294" class="ln" marker-end="url(#ar)"/>
+
+      <text x="48" y="262" class="h">RETURN · GPS JAMMED OR SPOOFED</text>
+      <rect x="48" y="300" width="190" height="80" rx="6" class="plain"/>
+      <text x="143" y="336" text-anchor="middle" class="t">Camera</text>
+      <text x="143" y="357" text-anchor="middle" class="s">1–3 frames/s</text>
+      <rect x="298" y="300" width="190" height="80" rx="6" class="ours"/>
+      <text x="393" y="336" text-anchor="middle" class="t">Rectify</text>
+      <text x="393" y="357" text-anchor="middle" class="s">level · north-up · scale</text>
+      <rect x="548" y="300" width="230" height="80" rx="6" class="ours"/>
+      <text x="663" y="336" text-anchor="middle" class="t">Match vs breadcrumb</text>
+      <text x="663" y="357" text-anchor="middle" class="s">offset (m) + uncertainty</text>
+      <rect x="838" y="300" width="300" height="80" rx="6" class="px4"/>
+      <text x="988" y="336" text-anchor="middle" class="t">PX4 EKF2</text>
+      <text x="988" y="357" text-anchor="middle" class="s">IMU + baro + compass + vision fix</text>
+      <path d="M238,340 H294" class="ln" marker-end="url(#ar)"/>
+      <path d="M488,340 H544" class="ln" marker-end="url(#ar)"/>
+      <path d="M778,340 H834" class="ln" marker-end="url(#ar)"/>
+      <text x="806" y="326" text-anchor="middle" class="lab">fix</text>
+
+      <path d="M548,146 H663 V296" class="dot" marker-end="url(#ar)"/>
+      <text x="675" y="230" class="lab">stored breadcrumbs</text>
+
+      <path d="M988,380 V430 H393 V384" class="fb" marker-end="url(#arb)"/>
+      <path d="M663,430 V384" class="fb" marker-end="url(#arb)"/>
+      <text x="405" y="452" class="labb">attitude + altitude</text>
+      <text x="675" y="452" class="labb">position → which breadcrumb</text>
+
+      <rect x="838" y="490" width="300" height="64" rx="6" class="plain"/>
+      <text x="988" y="518" text-anchor="middle" class="t">Controller</text>
+      <text x="988" y="539" text-anchor="middle" class="s">breadcrumb to breadcrumb, home</text>
+      <path d="M1138,340 H1160 V522 H1142" class="ln" marker-end="url(#ar)"/>
+
+      <text x="48" y="510" class="t" style="font-size:16px">GPS</text>
+      <text x="48" y="532" class="s">Ignored when it disagrees with vision + IMU by &gt;12 m</text>
+      <text x="48" y="552" class="s">(this is also the spoof detector).</text>
+    </svg>
     <div class="notes">
-      <p><b>~15s.</b> Next we take it to hardware. Thanks! The demo is live at the URL, try it yourself.</p>
+      <p><b>~20 s.</b> Top row: outbound, camera to breadcrumb store. Bottom row: the return loop. The EKF feeds attitude and altitude back to rectify, and its position picks which breadcrumb to match. The fix goes in as standard external vision, so nothing inside PX4 changes.</p>
+    </div>
+  </section>
+
+  <!-- ============================================================ 6. MODEL -->
+  <section class="slide s-model" data-title="Model" data-time="25">
+    <p class="eyebrow">Model</p>
+    <h2>A 1 MB matcher that knows when it is unsure</h2>
+    <div class="flow">
+      <div><b>Frozen trunk</b><span>ImageNet MobileNetV3-Small</span></div>
+      <div><b>Descriptor grid</b><span>14 × 14 × 16, the 2 KB breadcrumb</span></div>
+      <div><b>Correlation</b><span>live vs stored, over 225 shifts</span></div>
+      <div><b>Heads</b><span>soft-argmax offset + learned covariance; arrival; no-match</span></div>
+    </div>
+    <div class="metrics">
+      <div class="metric"><div class="value"><strong>~1 MB</strong></div><p>int8 student</p></div>
+      <div class="metric"><div class="value"><strong>2 KB</strong></div><p>per breadcrumb</p><small>≈ 21 MB for a 3 h flight</small></div>
+      <div class="metric"><div class="value"><strong>35 M</strong></div><p>multiply-adds per frame</p></div>
+      <div class="metric"><div class="value"><strong>~10 ms</strong></div><p>on a Pi-class CPU</p><small>~1 Hz on a flight-controller MCU (estimate)</small></div>
+    </div>
+    <div class="notes">
+      <p><b>~25 s.</b> A frozen ImageNet backbone turns the rectified frame into a 14 by 14 grid of 16-number descriptors: that grid is the breadcrumb, 2 KB. We correlate the live grid against the stored one over 225 shifts and read out a sub-cell offset in metres, plus a covariance the EKF uses to weight it, plus "have I arrived" and "this doesn't match". About 35 million multiply-adds: ~10 ms on a Raspberry Pi-class CPU, roughly 1 Hz on a flight-controller MCU (that one is an estimate, not measured), or on a smart-camera module.</p>
+    </div>
+  </section>
+
+  <!-- ============================================================ 7. SIM + DATA -->
+  <section class="slide s-sim" data-title="Simulator and data" data-time="20">
+    <p class="eyebrow">Simulator and data</p>
+    <h2>Real terrain, simulated flights</h2>
+    <div class="row" style="grid-template-columns: 1fr 1fr; gap: 40px;">
+      <figure><img src="assets/img/sim_village.jpg" alt="Village rendered from Google Photorealistic 3D Tiles"></figure>
+      <figure><img src="assets/img/rectify.jpg" alt="Rectification examples: raw frame, levelled, north-up and scaled, reference"></figure>
+    </div>
+    <p class="caption"><span class="figure-label">Left:</span> Magdeburg, Google Photorealistic 3D Tiles. <span class="figure-label">Right:</span> rectification on a US area (lidar + NAIP aerial), raw frame → levelled → north-up and scaled → reference.</p>
+    <div class="metrics" style="margin-top:28px; padding:30px 0">
+      <div class="metric"><div class="value" style="font-size:60px"><strong>13</strong></div><p>areas: Magdeburg 10 × 10 km + 12 US</p></div>
+      <div class="metric"><div class="value" style="font-size:60px">80–250 m</div><p>AGL, physically flown quad trajectories</p></div>
+      <div class="metric"><div class="value" style="font-size:60px"><strong>1.82 M</strong></div><p>training frames</p></div>
+      <div class="metric"><div class="value" style="font-size:60px">6,000/s</div><p>frames rendered on 4 GPUs</p></div>
+    </div>
+    <div class="notes">
+      <p><b>~20 s.</b> We built the simulator ourselves on real-world 3D: Google's photorealistic tiles for a 10 by 10 km area near Magdeburg, and US lidar plus NAIP aerial imagery for 12 more areas. Quadcopter trajectories are physically flown at 80 to 250 m. We rendered 1.82 million training frames at up to 6,000 frames a second on four GPUs.</p>
+    </div>
+  </section>
+
+  <!-- ============================================================ 8. LIVE: OURS -->
+  <section class="slide s-demo" data-demo="ours" data-title="Live: our system" data-time="40">
+    <div>
+      <p class="eyebrow">Live replay</p>
+      <h2>Loading the 3D replay…</h2>
+    </div>
+    <div class="notes">
+      <p><b>~40 s.</b> Same terrain, our system, closed loop: the drone actually flies on our estimate. This is the median mission of 32. Green is our estimate, white the truth: they stay together. Dots on the ground are the breadcrumbs. Press T at the end: home within ~4 m. Press 1 to flip back to stock PX4 for contrast.</p>
+    </div>
+  </section>
+
+  <!-- ============================================================ 9. WHAT THE DRONE SEES -->
+  <section class="slide s-video" data-title="What the drone sees" data-time="20">
+    <h2>What the drone sees on the way back</h2>
+    <figure>
+      <video data-src="media/rth_mission012.mp4" poster="media/rth_mission012_poster.jpg" muted loop playsinline preload="none"></video>
+      <figcaption>Median mission, ×8. Top: live frame after rectification next to the breadcrumb it is matched against. Left: true return (white) and estimate (green) over the map.</figcaption>
+    </figure>
+    <div class="notes">
+      <p><b>~20 s.</b> Top middle is what the camera sees after rectification; top right is the breadcrumb it's looking for. The model says "you are 4 m south-east of it, ± 4 m", and the EKF moves on to the next breadcrumb. Fix yield is 99.7%.</p>
+    </div>
+  </section>
+
+  <!-- ============================================================ 10. RESULTS -->
+  <section class="slide s-results" data-steps="1" data-title="Results" data-time="25">
+    <p class="eyebrow">Results · closed-loop return to home</p>
+    <h2>32 of 32 missions home within 10 m</h2>
+    <div class="metrics">
+      <div class="metric"><div class="value"><strong>32</strong><span>vs</span>0</div><p>missions home within 10 m<br>ours vs stock PX4</p></div>
+      <div class="metric"><div class="value"><strong>3.3 m</strong><span>vs</span>847 m</div><p>median distance from home</p><small>p90 7.5 m vs 4.2 km</small></div>
+      <div class="metric"><div class="value"><strong>3.1 m</strong></div><p>median position error during the return</p></div>
+    </div>
+    <div class="callout step" data-step="1" style="margin-top:48px"><p>Cross-check: replaying the same vision fixes through real PX4 EKF2 gives <strong>3.8 m</strong>, against <strong>3.5 m</strong> in our EKF twin.</p></div>
+    <p class="footnote">32 missions over Magdeburg: 1–4 km out, 100–200 m AGL, wind up to 6 m/s with gusts. GPS jammed at the turnaround. Model v2. Stock = PX4 EKF2 replay of the same flights. Magdeburg terrain was in training (different flights); see held-out test.</p>
+    <div class="notes">
+      <p><b>~25 s · 1 click.</b> Every one of 32 missions gets home within 10 m; median 3.3 m. Stock PX4 gets none of them home. During the return our position error is about 3 m. (click) And this isn't an artifact of our own EKF: feeding the same fixes through real PX4 EKF2 gives 3.8 m vs 3.5 m.</p>
+    </div>
+  </section>
+
+  <!-- ============================================================ 11. CALIBRATION -->
+  <section class="slide s-calib" data-title="Calibrated uncertainty" data-time="15">
+    <p class="eyebrow">Results · offline</p>
+    <h2>Its uncertainty is honest</h2>
+    <table style="max-width:1400px">
+      <thead><tr><th></th><th>Ours</th><th>Ideal</th></tr></thead>
+      <tbody>
+        <tr><td>Offset error, median</td><td class="hl">4.9 m</td><td>0</td></tr>
+        <tr><td>Errors inside 1σ</td><td class="hl">37%</td><td>39%</td></tr>
+        <tr><td>Errors inside 2σ</td><td class="hl">85%</td><td>86%</td></tr>
+        <tr><td>Confident but wrong fixes <span class="sub">closed loop</span></td><td class="hl">0.02%</td><td>0</td></tr>
+      </tbody>
+    </table>
+    <p class="caption" style="max-width:1400px">σ is the model's own 2D covariance (1σ and 2σ ellipses: 39% and 86% for a Gaussian). Confident-wrong = a fix more than 3σ (Mahalanobis) from the truth.</p>
+    <div class="notes">
+      <p><b>~15 s.</b> The EKF trusts the model only as much as the model's own uncertainty says. That uncertainty is calibrated: 37% of errors fall inside 1 sigma where 39% should, 85% inside 2 sigma vs 86%. In closed loop only 0.02% of fixes were confidently wrong.</p>
+    </div>
+  </section>
+
+  <!-- ============================================================ 12. HELD-OUT -->
+  <section class="slide s-heldout" data-title="Unseen terrain" data-time="10">
+    <p class="eyebrow">Generalisation <span class="tag" style="margin-left:16px">in progress</span></p>
+    <h2>On terrain it never saw</h2>
+    <div class="metrics tbd" style="max-width:1300px">
+      <div class="metric"><div class="value"><strong>5.5 m</strong></div><p>median offset error on Magdeburg,<br>model trained without it (v3)</p></div>
+      <div class="metric"><div class="value">5.0 m</div><p>same test, model trained with it</p></div>
+    </div>
+    <p class="caption tbd" style="margin-top:28px">Early reading while v3 trains. Final numbers to come.</p>
+    <div class="notes">
+      <p><b>~10 s.</b> The obvious question: does it only work because it trained on this terrain? We're training v3 without Magdeburg at all. Early reading: 5.5 m on the unseen area vs 5.0 m when it was in training. <i>[Update with final v3 numbers.]</i></p>
+    </div>
+  </section>
+
+  <!-- ============================================================ 13. LIMITATIONS -->
+  <section class="slide s-limits" data-title="Limitations" data-time="15">
+    <p class="eyebrow">Limitations</p>
+    <h2>What we haven't solved</h2>
+    <ul class="list">
+      <li><b>Hilly terrain</b><span>Rectification assumes flat ground, so accuracy drops on slopes.</span></li>
+      <li><b>Sim-to-real appearance</b><span>Untested. Real cameras, seasons and light differ from rendered tiles.</span></li>
+      <li><b>No-match threshold</b><span>Needs calibrating per region.</span></li>
+    </ul>
+    <div class="notes">
+      <p><b>~15 s.</b> Three honest caveats. Hills break our flat-ground rectification. Everything is simulated, so real-camera appearance change is untested. And the no-match threshold has to be calibrated per region.</p>
+    </div>
+  </section>
+
+  <!-- ============================================================ 14. CLOSE -->
+  <section class="slide s-close" data-title="Close" data-time="5">
+    <div style="display:flex; flex-direction:column; justify-content:center; height:100%">
+      <p class="eyebrow">Homeward</p>
+      <h2 style="font-size:84px">GPS jammed. Home within 10 m.</h2>
+      <p class="lead">32 of 32 missions, on a 1 MB model, through stock PX4.</p>
+      <p class="caption" style="font-size:28px; margin-top:48px">Live replay: <span class="figure-label">7peng.github.io/drone-presentation</span></p>
+    </div>
+    <div class="notes">
+      <p><b>~5 s.</b> Thanks. The live replay is at the URL.</p>
     </div>
   </section>
 
 </div>
 </div>
 
-<div id="demo-layer"><iframe data-src="demo/?embed=1" title="Live 3D demo" allow="fullscreen"></iframe></div>
+<div id="demo-layer"><iframe data-src="cesium/?embed=1" title="Live 3D replay" allow="fullscreen"></iframe></div>
 <div id="notes-overlay"></div>
 <div id="progress"></div>
 <div id="slide-num"></div>

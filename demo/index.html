@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Homeward Live Demo</title>
+<link rel="stylesheet" href="demo.css">
+<script type="importmap">
+  { "imports": { "three": "../vendor/three/three.module.min.js", "three/addons/": "../vendor/three/addons/" } }
+</script>
+</head>
+<body>
+<canvas id="scene"></canvas>
+
+<div id="hud">
+  <div class="top">
+    <div class="brand"><b>HOMEWARD</b> · SIM <span id="clock">T+00:00</span></div>
+    <div id="gps" class="pill ok">● GPS LOCKED</div>
+    <div class="cam">CAM <b id="cam-name">DIRECTOR</b></div>
+  </div>
+
+  <div class="card ours" id="card-ours">
+    <h4>OURS · LEARNED NAV</h4>
+    <dl>
+      <dt>Mode</dt><dd data-k="mode">ON PAD</dd>
+      <dt>Nav source</dt><dd data-k="nav">GPS</dd>
+      <dt>Position error</dt><dd data-k="err">0.0 m</dd>
+      <dt>Dist. home</dt><dd data-k="home">0 m</dd>
+      <dt>Alt / speed</dt><dd data-k="alt">0 m · 0 m/s</dd>
+    </dl>
+  </div>
+  <div class="card base" id="card-base">
+    <h4>BASELINE · STOCK AUTOPILOT</h4>
+    <dl>
+      <dt>Mode</dt><dd data-k="mode">ON PAD</dd>
+      <dt>Nav source</dt><dd data-k="nav">GPS</dd>
+      <dt>Position error</dt><dd data-k="err">0.0 m</dd>
+      <dt>Dist. home</dt><dd data-k="home">0 m</dd>
+      <dt>Alt / speed</dt><dd data-k="alt">0 m · 0 m/s</dd>
+    </dl>
+  </div>
+
+  <div id="toast"></div>
+  <div id="start-hint">Press <kbd>Space</kbd> to launch</div>
+
+  <div class="tags"><div class="tag ours" id="tag-ours">OURS</div><div class="tag base" id="tag-base">BASELINE</div></div>
+
+  <div class="bar">
+    <button data-act="restart" title="R">⟲ Restart</button>
+    <button data-act="play" id="btn-play" title="Space">▶ Launch</button>
+    <button data-act="speed" id="btn-speed" title="S">1×</button>
+    <button data-act="jam" class="danger" title="J">⚡ Jam GPS</button>
+    <button data-act="cam" title="C / 1-4">🎥 Camera</button>
+    <button data-act="baseline" id="btn-base" title="B">Baseline: on</button>
+    <span class="keys">Space · J · C/1–4 · B · S · R · F</span>
+  </div>
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

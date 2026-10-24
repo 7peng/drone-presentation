@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Homeward</title>
+<meta name="description" content="Learned return-to-launch for drones under GPS jamming — hackathon presentation and live 3D demo.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%230a0f1c'/%3E%3Cpath d='M8 20 16 9l8 11' fill='none' stroke='%2339d0ff' stroke-width='3'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="assets/css/deck.css">
+</head>
+<body>
+
+<!-- Shared SVG symbols -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="quad" viewBox="-50 -50 100 100">
+      <g stroke="currentColor" stroke-width="6" stroke-linecap="round"><line x1="-30" y1="-30" x2="30" y2="30"/><line x1="30" y1="-30" x2="-30" y2="30"/></g>
+      <g fill="none" stroke="currentColor" stroke-width="4" opacity=".85">
+        <circle cx="-32" cy="-32" r="15"/><circle cx="32" cy="-32" r="15"/><circle cx="-32" cy="32" r="15"/><circle cx="32" cy="32" r="15"/>
+      </g>
+      <rect x="-13" y="-17" width="26" height="34" rx="7" fill="currentColor"/>
+    </symbol>
+    <symbol id="sat" viewBox="-50 -30 100 60">
+      <rect x="-12" y="-14" width="24" height="28" rx="4" fill="#cfd8ea"/>
+      <rect x="-48" y="-9" width="30" height="18" fill="#3a6ea8" stroke="#8fb4e0" stroke-width="2"/>
+      <rect x="18" y="-9" width="30" height="18" fill="#3a6ea8" stroke="#8fb4e0" stroke-width="2"/>
+    </symbol>
+    <symbol id="pad" viewBox="-50 -50 100 100">
+      <circle r="46" fill="#14243a" stroke="#2ee59d" stroke-width="4"/>
+      <text y="17" text-anchor="middle" font-family="ui-sans-serif, system-ui" font-weight="800" font-size="48" fill="#2ee59d">H</text>
+    </symbol>
+  </defs>
+</svg>
+
+<div id="viewport">
+<div id="stage">
+
+  <!-- ================================================================ 1. TITLE -->
+  <section class="slide s-title" data-title="Title" data-time="15">
+    <p class="kicker">Hackathon 2026 · <span class="tbd">Track name</span></p>
+    <h1 class="tbd">Home<span>ward</span></h1>
+    <p class="lede">Teaching drones to <strong>find their way home</strong><br>when GPS goes dark.</p>
+    <p class="team tbd">Team Name — Alice · Bob · Carol · Dan</p>
+
+    <svg class="orbit" viewBox="0 0 760 760" aria-hidden="true">
+      <g fill="none" stroke="#1d2b48" stroke-width="2">
+        <circle cx="380" cy="380" r="120"/><circle cx="380" cy="380" r="230"/><circle cx="380" cy="380" r="340"/>
+      </g>
+      <path id="title-route" d="M380 380 C 420 200, 640 170, 640 330 S 520 600, 380 380" fill="none" stroke="#39d0ff" stroke-width="3" stroke-dasharray="10 12" opacity=".7"/>
+      <use href="#pad" x="340" y="340" width="80" height="80"/>
+      <g color="#39d0ff">
+        <use href="#quad" x="-28" y="-28" width="56" height="56">
+        </use>
+        <animateMotion dur="9s" repeatCount="indefinite" rotate="auto"><mpath href="#title-route"/></animateMotion>
+      </g>
+    </svg>
+
+    <div class="notes">
+      <p><b>~15s.</b> Hi, we're <i>[team]</i>. Drones depend on GPS to get home. We built a model that gets them home when GPS is jammed.</p>
+    </div>
+  </section>
+
+  <!-- ================================================================ 2. PROBLEM -->
+  <section class="slide s-problem" data-steps="2" data-title="The problem" data-time="40">
+    <p class="kicker">The problem</p>
+    <h2>GPS is a single point of failure</h2>
+    <div class="row" style="align-items:flex-start; margin-top: 30px;">
+      <div style="width:620px">
+        <div class="caption-stack" style="height:420px">
+          <p class="cap0">Every drone's <strong>return-to-launch</strong> failsafe assumes it knows where it is. That comes from GPS.</p>
+          <p class="cap1">A cheap jammer <strong class="c-jam">drowns out</strong> satellite signals that are weaker than a light bulb seen from 20,000 km away.</p>
+          <p class="cap2">Without a fix, the drone <strong>dead-reckons</strong>. Small IMU errors compound, and it ends up <strong class="c-base">lost, drifting, or down</strong> in the wrong place.</p>
+        </div>
+        <p class="tbd" style="font-size:26px;color:#5d6d8c;margin-top:40px">Add one cited stat on jamming frequency, e.g. from a 2025 regulator or ADS-B report.</p>
+      </div>
+
+      <svg class="diagram" viewBox="0 0 1000 640" style="width:1000px">
+        <!-- satellites + links -->
+        <g>
+          <line class="sat-link" x1="150" y1="80" x2="380" y2="330"/>
+          <line class="sat-link" x1="500" y1="50" x2="380" y2="330"/>
+          <line class="sat-link" x1="860" y1="90" x2="380" y2="330"/>
+          <use href="#sat" x="100" y="50" width="100" height="60"/>
+          <use href="#sat" x="450" y="20" width="100" height="60"/>
+          <use href="#sat" x="810" y="60" width="100" height="60"/>
+        </g>
+
+        <!-- home -->
+        <use href="#pad" x="120" y="490" width="110" height="110"/>
+        <text class="home-tag" x="175" y="630" text-anchor="middle" fill="#2ee59d" font-family="ui-monospace, Menlo, monospace" font-size="20" font-weight="700">HOME</text>
+
+        <!-- jammer -->
+        <g class="jammer">
+          <circle class="jam-ring" cx="820" cy="470" r="130" fill="none" stroke="#ff3d5e" stroke-width="4"/>
+          <circle class="jam-ring r2" cx="820" cy="470" r="130" fill="none" stroke="#ff3d5e" stroke-width="4"/>
+          <circle class="jam-ring r3" cx="820" cy="470" r="130" fill="none" stroke="#ff3d5e" stroke-width="4"/>
+          <path d="M820 420 L792 540 M820 420 L848 540 M800 505 L840 505 M806 475 L834 475" stroke="#ff3d5e" stroke-width="5" fill="none" stroke-linecap="round"/>
+          <circle cx="820" cy="414" r="9" fill="#ff3d5e"/>
+          <text x="820" y="580" text-anchor="middle" fill="#ff3d5e" font-family="ui-monospace, Menlo, monospace" font-size="20" font-weight="700">JAMMER</text>
+        </g>
+
+        <!-- drift -->
+        <line class="drift-path" x1="380" y1="330" x2="630" y2="505" stroke="#ff9a3c" stroke-width="3" stroke-dasharray="900"/>
+        <line class="drift-path" x1="380" y1="330" x2="175" y2="545" stroke="#2ee59d" stroke-width="2" stroke-dasharray="6 10" opacity=".5"/>
+
+        <g class="drone-mover">
+          <circle class="uncert" cx="380" cy="330" r="120" fill="rgba(255,154,60,.08)" stroke="#ff9a3c" stroke-width="2" stroke-dasharray="6 8"/>
+          <g color="#e8eef9"><use href="#quad" x="335" y="285" width="90" height="90"/></g>
+          <g font-family="ui-monospace, Menlo, monospace" font-size="20" font-weight="700">
+            <text class="gps-ok" x="380" y="262" text-anchor="middle" fill="#2ee59d">GPS ✓ 3D FIX</text>
+            <text class="gps-bad" x="380" y="262" text-anchor="middle" fill="#ff3d5e">GPS ✕ NO FIX</text>
+          </g>
+        </g>
+        <text class="lost-tag" x="630" y="625" text-anchor="middle" fill="#ff9a3c" font-family="ui-monospace, Menlo, monospace" font-size="22" font-weight="700">position error: 100+ m</text>
+      </svg>
+    </div>
+
+    <div class="notes">
+      <p><b>~40s · 2 clicks.</b></p>
+      <ul>
+        <li>(start) Return-to-launch is the universal safety net, and it needs GPS.</li>
+        <li>(click) Jammers are cheap and common near conflict zones, airports and events. The GPS signal is extremely faint, so it's easy to drown out.</li>
+        <li>(click) The drone falls back to its IMU. Errors grow quadratically, and within a minute it's 100 m off and lands somewhere it shouldn't.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ================================================================ 3. MODEL -->
+  <section class="slide s-model" data-steps="2" data-title="Our model" data-time="45">
+    <p class="kicker">Our approach</p>
+    <h2>A learned navigator that doesn't need GPS</h2>
+
+    <svg class="diagram pipe" viewBox="0 0 1640 620" style="margin-top:40px">
+      <defs>
+        <path id="w1" d="M300 70  C 420 70,  420 300, 520 300"/>
+        <path id="w2" d="M300 185 C 420 185, 420 310, 520 310"/>
+        <path id="w3" d="M300 300 C 420 300, 420 320, 520 320"/>
+        <path id="w4" d="M300 415 C 420 415, 420 330, 520 330"/>
+        <path id="w5" d="M300 530 C 420 530, 420 340, 520 340"/>
+        <path id="o1" d="M1000 260 C 1120 260, 1120 170, 1240 170"/>
+        <path id="o2" d="M1000 380 C 1120 380, 1120 450, 1240 450"/>
+      </defs>
+
+      <!-- inputs (edit to match your actual observation space) -->
+      <g class="col-in tbd">
+        <g class="node"><rect x="0" y="25"  width="300" height="90" rx="14"/><text x="24" y="64">IMU</text><text class="sub" x="24" y="94">accel · gyro · 200 Hz</text></g>
+        <g class="node"><rect x="0" y="140" width="300" height="90" rx="14"/><text x="24" y="179">Down camera</text><text class="sub" x="24" y="209">optical flow · features</text></g>
+        <g class="node"><rect x="0" y="255" width="300" height="90" rx="14"/><text x="24" y="294">Baro + compass</text><text class="sub" x="24" y="324">altitude · heading</text></g>
+        <g class="node"><rect x="0" y="370" width="300" height="90" rx="14"/><text x="24" y="409">Last GPS fix</text><text class="sub" x="24" y="439">home vector at jam</text></g>
+        <g class="node"><rect x="0" y="485" width="300" height="90" rx="14"/><text x="24" y="524">Flight state</text><text class="sub" x="24" y="554">velocity · attitude</text></g>
+      </g>
+
+      <g class="wires-1">
+        <use href="#w1" class="wire"/><use href="#w2" class="wire"/><use href="#w3" class="wire"/><use href="#w4" class="wire"/><use href="#w5" class="wire"/>
+        <circle r="7" class="pulse"><animateMotion dur="1.4s" repeatCount="indefinite"><mpath href="#w1"/></animateMotion></circle>
+        <circle r="7" class="pulse"><animateMotion dur="1.4s" begin=".3s" repeatCount="indefinite"><mpath href="#w2"/></animateMotion></circle>
+        <circle r="7" class="pulse"><animateMotion dur="1.4s" begin=".6s" repeatCount="indefinite"><mpath href="#w3"/></animateMotion></circle>
+        <circle r="7" class="pulse"><animateMotion dur="1.4s" begin=".15s" repeatCount="indefinite"><mpath href="#w4"/></animateMotion></circle>
+        <circle r="7" class="pulse"><animateMotion dur="1.4s" begin=".45s" repeatCount="indefinite"><mpath href="#w5"/></animateMotion></circle>
+      </g>
+
+      <!-- core -->
+      <g class="col-core tbd">
+        <rect x="520" y="110" width="480" height="420" rx="22" fill="none" stroke="#39d0ff" stroke-width="2" stroke-dasharray="4 8" opacity=".6"/>
+        <text x="540" y="96" fill="#39d0ff" style="font:600 20px ui-monospace, Menlo, monospace; letter-spacing:.12em">ON-BOARD · &lt;5 MS / STEP</text>
+        <g class="node core"><rect x="560" y="150" width="400" height="130" rx="16"/><text x="590" y="205">Sensor encoder</text><text class="sub" x="590" y="242">CNN + MLP → latent</text></g>
+        <g class="node core"><rect x="560" y="350" width="400" height="140" rx="16"/><text x="590" y="405">Recurrent policy</text><text class="sub" x="590" y="442">GRU · remembers the path out</text></g>
+        <line x1="760" y1="280" x2="760" y2="350" stroke="#39d0ff" stroke-width="3"/>
+        <circle r="6" class="pulse"><animateMotion dur=".8s" repeatCount="indefinite" path="M760 280 L760 350"/></circle>
+        <path class="mem-loop" d="M960 400 C 1010 400, 1010 470, 960 470"/>
+        <text x="975" y="510" fill="#8b9bb8" style="font:500 17px ui-monospace, Menlo, monospace">h(t)</text>
+      </g>
+
+      <g class="wires-2">
+        <use href="#o1" class="wire"/><use href="#o2" class="wire"/>
+        <circle r="7" class="pulse"><animateMotion dur="1.2s" repeatCount="indefinite"><mpath href="#o1"/></animateMotion></circle>
+        <circle r="7" class="pulse"><animateMotion dur="1.2s" begin=".6s" repeatCount="indefinite"><mpath href="#o2"/></animateMotion></circle>
+      </g>
+
+      <!-- outputs -->
+      <g class="col-out tbd">
+        <g class="node"><rect x="1240" y="110" width="400" height="120" rx="14" style="stroke:#2ee59d"/><text x="1266" y="160">Velocity + yaw setpoints</text><text class="sub" x="1266" y="194">→ PX4 offboard @ 20 Hz</text></g>
+        <g class="node"><rect x="1240" y="390" width="400" height="120" rx="14" style="stroke:#2ee59d"/><text x="1266" y="440">Home estimate ± σ</text><text class="sub" x="1266" y="474">confidence → land / loiter</text></g>
+      </g>
+    </svg>
+
+    <div class="notes">
+      <p><b>~45s · 2 clicks.</b> <i>Edit the boxes to match your real architecture.</i></p>
+      <ul>
+        <li>(start) Inputs: only sensors that can't be jammed. IMU, camera, baro and compass, plus the last good GPS fix.</li>
+        <li>(click) An encoder fuses them. A recurrent policy keeps memory of the path flown out, which is what lets it retrace the way home.</li>
+        <li>(click) It outputs velocity commands straight to the flight controller, plus its own confidence. If confidence drops it loiters instead of guessing.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ================================================================ 4. TRAINING -->
+  <section class="slide s-train" data-steps="3" data-title="Training" data-time="45">
+    <p class="kicker">Training</p>
+    <h2>Millions of jammed flights in simulation</h2>
+    <div class="row" style="margin-top:20px">
+      <svg class="diagram loop" viewBox="0 0 1000 720" style="width:1000px">
+        <circle class="ring" cx="500" cy="380" r="270"/>
+        <circle class="ring-flow" cx="500" cy="380" r="270" pathLength="1000"/>
+        <g class="node n1"><circle cx="500" cy="110" r="98"/><text x="500" y="104">Simulator</text><text class="sub" x="500" y="134">terrain · wind</text></g>
+        <g class="node n2"><circle cx="757" cy="297" r="98"/><text x="757" y="291">Jam</text><text class="sub" x="757" y="321">random onset</text></g>
+        <g class="node n3"><circle cx="659" cy="598" r="98"/><text x="659" y="592">Rollouts</text><text class="sub" x="659" y="622">parallel envs</text></g>
+        <g class="node n4"><circle cx="341" cy="598" r="98"/><text x="341" y="592">Reward</text><text class="sub" x="341" y="622">dist · landing</text></g>
+        <g class="node n5"><circle cx="243" cy="297" r="98"/><text x="243" y="291">Update</text><text class="sub" x="243" y="321">PPO</text></g>
+        <text x="500" y="370" text-anchor="middle" fill="#39d0ff" style="font:700 54px ui-monospace, Menlo, monospace">RL</text>
+        <text x="500" y="410" text-anchor="middle" fill="#8b9bb8" style="font:500 20px ui-monospace, Menlo, monospace">closed loop</text>
+      </svg>
+      <ul class="facts col">
+        <li class="step tbd" data-step="1"><b>Randomized jamming</b>Jam onset, duration and strength; wind; sensor noise; terrain.</li>
+        <li class="step tbd" data-step="2"><b>12M steps</b>across 40k procedurally generated flights.</li>
+        <li class="step tbd" data-step="3"><b>Reward</b>Closing distance to home, plus a large bonus for landing within 3 m and penalties for energy and crashes.</li>
+      </ul>
+    </div>
+
+    <div class="notes">
+      <p><b>~45s · 3 clicks.</b> <i>Replace numbers with your real ones.</i></p>
+      <ul>
+        <li>(start) We train with reinforcement learning in simulation, since you can't jam real GPS legally.</li>
+        <li>(click) Every episode jams at a random moment, so the model can't memorize a route.</li>
+        <li>(click) Scale: [N] steps, [M] flights, [hours] on [GPU].</li>
+        <li>(click) The reward is simple: get closer to home and land accurately.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ================================================================ 5. LIVE DEMO -->
+  <section class="slide s-demo" data-demo data-title="Live demo" data-time="90">
+    <div>
+      <p class="kicker">Live demo</p>
+      <h2>Loading 3D simulation…</h2>
+      <p class="lede">If this doesn't load, open <span class="mono hl">demo/</span> directly.</p>
+    </div>
+    <div class="notes">
+      <p><b>~90s.</b> Demo keys: <b>Space</b> start/pause · <b>J</b> jam now · <b>C</b> camera · <b>B</b> hide baseline · <b>R</b> restart · <b>PageDown</b> next slide.</p>
+      <ul>
+        <li>Press Space. Both drones take off and fly the same mission with GPS: <span style="color:#39d0ff">ours</span> and a <span style="color:#ff9a3c">standard autopilot</span>.</li>
+        <li>The jammer fires automatically at waypoint 2 (or press J). GPS drops for both, and both trigger return-to-launch.</li>
+        <li>The faint ghost shows where each drone <i>thinks</i> it is. The baseline's ghost drifts off. Ours stays locked on.</li>
+        <li>Press 4 for the top-down view. Ours lands on the pad, the baseline lands ~100 m away.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ================================================================ 6. RESULTS -->
+  <section class="slide s-results" data-steps="1" data-title="Results" data-time="30">
+    <p class="kicker">Results</p>
+    <h2>Home, even when jammed</h2>
+    <div class="metric-grid tbd">
+      <div class="metric">
+        <h3>RTL success under jamming ↑</h3>
+        <div class="bar ours"><span class="c-ours">Ours</span><div class="track"><div class="fill" style="--w:94%"></div></div><span class="val c-ours">94%</span></div>
+        <div class="bar base"><span class="c-base">GPS-only</span><div class="track"><div class="fill" style="--w:18%"></div></div><span class="val c-base">18%</span></div>
+      </div>
+      <div class="metric">
+        <h3>Median landing error ↓</h3>
+        <div class="bar ours"><span class="c-ours">Ours</span><div class="track"><div class="fill" style="--w:2%"></div></div><span class="val c-ours">2.1 m</span></div>
+        <div class="bar base"><span class="c-base">GPS-only</span><div class="track"><div class="fill" style="--w:80%"></div></div><span class="val c-base">96 m</span></div>
+      </div>
+    </div>
+    <p class="footnote tbd">Placeholder numbers. N = 1,000 held-out simulated flights with randomized jam onset.</p>
+
+    <div class="notes">
+      <p><b>~30s · 1 click.</b> (click to animate bars) On held-out flights we get home 94% of the time vs 18%, and land within ~2 m.</p>
+    </div>
+  </section>
+
+  <!-- ================================================================ 7. CLOSE -->
+  <section class="slide s-close" data-title="What's next" data-time="15">
+    <p class="kicker">What's next</p>
+    <h2>From sim to sky</h2>
+    <div class="next-list tbd">
+      <div><b>Hardware test</b><span>Fly on a real quad in a shielded or legally jammed test range.</span></div>
+      <div><b>Spoofing</b><span>Detect GPS that's wrong rather than absent.</span></div>
+      <div><b>Fleets</b><span>Share landmarks between drones to cut drift further.</span></div>
+    </div>
+    <p class="url">7peng.github.io/drone-presentation</p>
+    <div class="notes">
+      <p><b>~15s.</b> Next we take it to hardware. Thanks! The demo is live at the URL, try it yourself.</p>
+    </div>
+  </section>
+
+</div>
+</div>
+
+<div id="demo-layer"><iframe data-src="demo/?embed=1" title="Live 3D demo" allow="fullscreen"></iframe></div>
+<div id="notes-overlay"></div>
+<div id="progress"></div>
+<div id="slide-num"></div>
+
+<script src="assets/js/deck.js"></script>
+</body>
+</html>

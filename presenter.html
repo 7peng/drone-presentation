@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Presenter View</title>
+<style>
+  :root { --bg:#0a0f1c; --panel:#152038; --line:#24314f; --text:#e8eef9; --muted:#8b9bb8; --ok:#2ee59d; --warn:#ffcc00; --jam:#ff3d5e; --accent:#39d0ff;
+          --mono: ui-monospace, "SF Mono", Menlo, monospace; --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--sans); height: 100vh; display: grid; grid-template-rows: auto 1fr auto; }
+  header { display: flex; align-items: center; gap: 28px; padding: 18px 26px; border-bottom: 1px solid var(--line); }
+  #clock { font: 700 56px var(--mono); letter-spacing: -.02em; }
+  #pace { font: 600 18px var(--mono); padding: 6px 12px; border-radius: 999px; background: var(--panel); }
+  #pace.ok { color: var(--ok); } #pace.warn { color: var(--warn); } #pace.over { color: var(--jam); }
+  .spacer { flex: 1; }
+  #where { text-align: right; font: 500 16px var(--mono); color: var(--muted); line-height: 1.6; }
+  #where b { color: var(--text); font-size: 22px; }
+  main { padding: 26px; overflow: auto; font-size: 26px; line-height: 1.55; }
+  main ul { padding-left: 1.1em; } main li { margin: .3em 0; }
+  footer { display: flex; gap: 12px; padding: 14px 26px; border-top: 1px solid var(--line); }
+  button { font: 600 18px var(--sans); color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 22px; cursor: pointer; }
+  button:hover { border-color: var(--accent); }
+  #waiting { color: var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <div id="clock">0:00</div>
+  <div id="pace">not started</div>
+  <div class="spacer"></div>
+  <div id="where"><span id="waiting">Waiting for the deck window… (press P there)</span></div>
+</header>
+<main id="notes"></main>
+<footer>
+  <button id="prev">← Back</button>
+  <button id="next">Next →</button>
+  <div class="spacer"></div>
+  <button id="reset">Reset timer</button>
+</footer>
+<script>
+  const ch = new BroadcastChannel('deck');
+  const $ = (id) => document.getElementById(id);
+  const TOTAL = 5 * 60;
+  let state = null;
+
+  const fmt = (s) => `${s < 0 ? '-' : ''}${Math.floor(Math.abs(s) / 60)}:${String(Math.floor(Math.abs(s) % 60)).padStart(2, '0')}`;
+
+  ch.onmessage = (e) => {
+    if (e.data.type !== 'state') return;
+    state = e.data;
+    $('where').innerHTML = `slide ${state.idx + 1}/${state.total} · step ${state.step}/${state.steps}<br><b>${state.title}</b><br>next: ${state.nextTitle || '—'}`;
+    $('notes').innerHTML = state.notes || '<em>No notes for this slide.</em>';
+  };
+  ch.postMessage({ type: 'hello' });
+
+  setInterval(() => {
+    if (!state || !state.timerStart) return;
+    const el = (Date.now() - state.timerStart) / 1000;
+    $('clock').textContent = fmt(el);
+    // Compare against the cumulative data-time budget up to the end of the current slide.
+    const budget = state.times.slice(0, state.idx + 1).reduce((a, b) => a + b, 0);
+    const pace = $('pace');
+    if (el > TOTAL) { pace.className = 'over'; pace.textContent = `over by ${fmt(el - TOTAL)}`; }
+    else if (el > budget + 10) { pace.className = 'warn'; pace.textContent = `behind ${fmt(el - budget)}`; }
+    else { pace.className = 'ok'; pace.textContent = `${fmt(TOTAL - el)} left`; }
+  }, 250);
+
+  $('prev').onclick = () => ch.postMessage({ type: 'nav', dir: -1 });
+  $('next').onclick = () => ch.postMessage({ type: 'nav', dir: 1 });
+  $('reset').onclick = () => ch.postMessage({ type: 'reset-timer' });
+  document.addEventListener('keydown', (e) => {
+    if (['ArrowRight', 'PageDown', ' '].includes(e.key)) { ch.postMessage({ type: 'nav', dir: 1 }); e.preventDefault(); }
+    if (['ArrowLeft', 'PageUp'].includes(e.key)) { ch.postMessage({ type: 'nav', dir: -1 }); e.preventDefault(); }
+  });
+</script>
+</body>
+</html>

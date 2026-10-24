@@ -27,7 +27,8 @@
   }
   const pending = (ts) => { try { return ts._statistics.numberOfPendingRequests + ts._statistics.numberOfTilesProcessing; } catch (e) { return NaN; } };
   // 'auto' (talk default): brisk outbound, slow around the jam, brisk return, slow arrival (captures stay in lockstep)
-  const autoRate = (m) => (m.phase === 'hover' ? 4 : m.phase === 'out' ? 8 : m.tJam !== null && m.t - m.tJam < 6 ? 2 : m.phase === 'home' || (m.k !== null && m.k <= m.H + 2) ? 3 : 6);
+  // (return ~400 s sim for cx_011 -> ~10x keeps it near 40 s wall when captures keep up)
+  const autoRate = (m) => (m.phase === 'hover' ? 4 : m.phase === 'out' ? 8 : m.tJam !== null && m.t - m.tJam < 4 ? 2 : m.phase === 'home' || (m.k !== null && m.k <= m.H + 2) ? 3 : 10);
   const spdLabel = (s) => (s === 'auto' ? 'Auto' : isFinite(s) ? `${s}×` : 'max');
   document.body.classList.toggle('present', S.present);
 
@@ -126,36 +127,43 @@
         valid[o] = 1;
       }
     }
-    const mask14 = new Float32Array(196);
-    for (let o = 0; o < N * N; o++) if (valid[o]) mask14[Math.floor(o / N / 16) * 14 + Math.floor((o % N) / 16)] += 1;
-    for (let i = 0; i < 196; i++) mask14[i] = Math.round(mask14[i] / 256 * 255) / 255;
+    const GH = Model.H || 14, GW = Model.W || 14, ch = N / GH, cw = N / GW, mask14 = new Float32Array(GH * GW);   // valid fraction per descriptor cell
+    for (let o = 0; o < N * N; o++) if (valid[o]) mask14[Math.floor(Math.floor(o / N) / ch) * GW + Math.floor((o % N) / cw)] += 1;
+    for (let i = 0; i < GH * GW; i++) mask14[i] = Math.round(mask14[i] / (ch * cw) * 255) / 255;
     // display copy: invalid border shown as a dim hatch so the mask is visible
     for (let o = 0; o < N * N; o++) if (!valid[o]) { const q = o * 4, h = ((o % N) + Math.floor(o / N)) % 8 < 4 ? 46 : 30; dd[q] = dd[q + 1] = dd[q + 2] = h; }
     return { rgb, mask14, valid, image: disp };
   }
 
   // ------------------------------------------------------------------ model (onnxruntime-web)
+  // Model contract comes from models/model.json (files, input, descriptor shape, I/O names, thresholds), so swapping in
+  // another checkpoint is: export ONNX + write model.json + rebuild data/start_*.json (descriptors are model-specific).
   const Model = {
-    async init(ep) {
+    async init(ep, cfg) {
+      this.cfg = cfg;
+      const [C, H, W] = cfg.desc_shape || [16, 14, 14];
+      Object.assign(this, { C, H, W, IN: cfg.input || { name: 'rgb', shape: [1, 224, 224, 3], dtype: 'uint8' }, MI: cfg.matcher_inputs || { q: 'q', qm: 'qm', b: 'b', bm: 'bm' },
+        MO: cfg.matcher_outputs || { offset_cells: 'offset_cells', cov_cells: 'cov_cells', arrival_logit: 'arrival_logit', nomatch_logit: 'nomatch_logit', shift_probs: 'shift_probs' } });
       ort.env.wasm.wasmPaths = ORT_DIST;
       ort.env.wasm.numThreads = self.crossOriginIsolated ? Math.min(4, navigator.hardwareConcurrency || 1) : 1;
       const eps = ep === 'webgpu' ? ['webgpu', 'wasm'] : ['wasm'];
       this.ep = ep;
-      this.enc = await ort.InferenceSession.create('models/encoder.onnx', { executionProviders: eps, graphOptimizationLevel: 'all' });
-      this.mat = await ort.InferenceSession.create('models/matcher.onnx', { executionProviders: eps, graphOptimizationLevel: 'all' });
-      this.ones = new Float32Array(196).fill(1);
+      this.enc = await ort.InferenceSession.create('models/' + (cfg.encoder || 'encoder.onnx'), { executionProviders: eps, graphOptimizationLevel: 'all' });
+      this.mat = await ort.InferenceSession.create('models/' + (cfg.matcher || 'matcher.onnx'), { executionProviders: eps, graphOptimizationLevel: 'all' });
+      this.ones = new Float32Array(this.H * this.W).fill(1);
     },
     async encode(rgb) {
       const t0 = performance.now();
-      const o = await this.enc.run({ rgb: new ort.Tensor('uint8', rgb, [1, 224, 224, 3]) });
-      return { desc: new Float32Array(o.desc.data), ms: performance.now() - t0 };
+      const o = await this.enc.run({ [this.IN.name]: new ort.Tensor(this.IN.dtype, rgb, this.IN.shape) });
+      return { desc: new Float32Array(o[this.cfg.desc_output || 'desc'].data), ms: performance.now() - t0 };
     },
     async match(q, qm, b, bm) {
       const t0 = performance.now(), T = (a, s) => new ort.Tensor('float32', a, s);
-      const o = await this.mat.run({ q: T(q, [1, 16, 14, 14]), qm: T(qm || this.ones, [1, 14, 14]), b: T(b, [1, 16, 14, 14]), bm: T(bm || this.ones, [1, 14, 14]) });
-      const mu = o.offset_cells.data, c = o.cov_cells.data, sig = (x) => 1 / (1 + Math.exp(-x));
-      return { mu: [mu[0], mu[1]], cov: [[c[0], c[1]], [c[2], c[3]]], pArr: sig(o.arrival_logit.data[0]), pNm: sig(o.nomatch_logit.data[0]),
-        probs: o.shift_probs ? new Float32Array(o.shift_probs.data) : null, ms: performance.now() - t0 };
+      const D = [1, this.C, this.H, this.W], Mk = [1, this.H, this.W], I = this.MI, O = this.MO;
+      const o = await this.mat.run({ [I.q]: T(q, D), [I.qm]: T(qm || this.ones, Mk), [I.b]: T(b, D), [I.bm]: T(bm || this.ones, Mk) });
+      const mu = o[O.offset_cells].data, c = o[O.cov_cells].data, sig = (x) => 1 / (1 + Math.exp(-x));
+      return { mu: [mu[0], mu[1]], cov: [[c[0], c[1]], [c[2], c[3]]], pArr: sig(o[O.arrival_logit].data[0]), pNm: sig(o[O.nomatch_logit].data[0]),
+        probs: O.shift_probs && o[O.shift_probs] ? new Float32Array(o[O.shift_probs].data) : null, ms: performance.now() - t0 };
     },
   };
 
@@ -381,7 +389,7 @@
     $('mission').value = spec.id;
     S.vision = vision; segOn();
     const wind = opts.wind ?? (S.wind !== null ? { speed: S.wind, fromDeg: spec.wind_from_deg } : undefined);
-    const m = new Nav.Mission(spec, { vision, drift, ground, thr, camHz: opts.camHz ?? parseFloat(params.get('camhz') || '2'), realism: opts.realism ?? S.realism, wind, retAgl: opts.retAgl,
+    const m = new Nav.Mission(spec, { vision, drift, ground, thr, camHz: opts.camHz ?? parseFloat(params.get('camhz') || ((opts.start ?? params.get('start')) === 'jam' ? '1' : '2')), realism: opts.realism ?? S.realism, wind, retAgl: opts.retAgl,
       homeBcs: opts.homeBcs ?? (params.has('homebcs') ? parseInt(params.get('homebcs'), 10) : 4), seedOffset: opts.seedOffset ?? 0,
       multiBc: opts.multiBc ?? (params.get('multibc') === '0' ? 1 : 3) });
     S.seedOffset = opts.seedOffset ?? 0;
@@ -492,6 +500,7 @@
     const r = await fetch(`data/start_${id}_s${seed}.json`);
     if (!r.ok) throw new Error(`no pre-flown outbound for ${id} (seed ${seed})`);
     const J = await r.json();
+    if ((J.model || 'offset-v3-mdcal') !== (thr.id || 'offset-v3-mdcal')) throw new Error(`pre-flown outbound was built with model ${J.model}, page runs ${thr.id}: rebuild data/start_${id}_s${seed}.json`);
     const b64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
     const img = async (url) => { const im = new Image(); im.src = url; await im.decode(); const c = document.createElement('canvas'); c.width = c.height = 224; const x = c.getContext('2d'); x.drawImage(im, 0, 0); return x.getImageData(0, 0, 224, 224); };
     for (const b of J.bcs) {
@@ -504,7 +513,7 @@
   async function exportPre() {   // used offline to build data/start_<id>_s<seed>.json
     const m = S.mission, c = document.createElement('canvas'); c.width = c.height = 224; const x = c.getContext('2d');
     const enc = (u8) => { let s = ''; for (let i = 0; i < u8.length; i += 8192) s += String.fromCharCode.apply(null, u8.subarray(i, i + 8192)); return btoa(s); };
-    return { mission: m.spec.id, seedOffset: S.seedOffset ?? 0, camHz: 1 / m.camDt, homeBcs: m.H, realism: m.realism, t_jam: m.tJam,
+    return { model: thr.id, mission: m.spec.id, seedOffset: S.seedOffset ?? 0, camHz: 1 / m.camDt, homeBcs: m.H, realism: m.realism, t_jam: m.tJam,
       bcs: m.bcs.map((b) => { x.putImageData(b.img, 0, 0); return { i: b.i, t: b.t, home: !!b.home, pe: b.pe, P: b.P, pt: b.pt, D: b.D, alt: b.alt, agl: b.agl, agl_s: b.agl_s, bucket: b.bucket, fov_deg: b.fov_deg,
         desc_i8: enc(new Uint8Array(Int8Array.from(b.desc, (v) => Math.max(-127, Math.min(127, Math.round(v * 127)))).buffer)), mask_u8: enc(Uint8Array.from(b.mask14, (v) => Math.round(v * 255))), jpeg: c.toDataURL('image/jpeg', 0.85) }; }) };
   }
@@ -527,10 +536,10 @@
     const sel = $('mission');
     missions.forEach((s) => sel.insertAdjacentHTML('beforeend', `<option value="${s.id}">${s.id.replace('mission_', 'M').replace('cx_', 'CX ')} · ${(s.legs.reduce((a, l) => a + l[1], 0) * (s.jam_frac ?? 1) / 1000).toFixed(1)} km${s.shape ? ' ' + s.shape : ''}</option>`));
     if (params.get('mission')) sel.value = params.get('mission');
-    else if (params.has('embed')) sel.value = 'cx_001';   // talk default: same zig-zag route as the stock slide, starting at the jam
+    else if (params.has('embed')) sel.value = 'cx_011';   // talk default: same zig-zag route as the stock slide, starting at the jam
     if (params.has('embed') && !params.has('start')) params.set('start', 'jam');
     status('Loading model + tiles…');
-    await Model.init(params.get('ep') || 'wasm');
+    await Model.init(params.get('ep') || 'wasm', thr);
     S.cam = new DroneCam('nadir', parseFloat(params.get('sse') || '16'));
     await S.cam.init();
     if (params.get('main') !== '0') await initMain();

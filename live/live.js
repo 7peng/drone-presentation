@@ -174,9 +174,13 @@
       pts.push(col === 1 ? nedToCart(m.p[0], m.p[1], m.D) : nedToCart(m.kf.x[0], m.kf.x[1], m.D));
       return pts.length > 1 ? pts : [pts[0], pts[0]];
     };
-    let jamIdx = -1;
-    add({ polyline: { positions: cb(path(1)), width: 3, material: C.WHITE, depthFailMaterial: C.WHITE.withAlpha(0.4) } });
-    add({ polyline: { positions: cb(() => { if (m.tJam === null) return []; if (jamIdx < 0) jamIdx = m.traj.length - 1; return path(3, jamIdx)(); }), width: 3, material: est, depthFailMaterial: est.withAlpha(0.4) } });
+    let jamIdx = -1, outCache = null;
+    const jamAt = () => { if (m.tJam === null) return -1; if (jamIdx < 0) jamIdx = m.traj.length - 1; return jamIdx; };
+    // outbound true path: thin dotted grey once the return starts (white while flying out); return true path: white
+    add({ polyline: { positions: cb(() => { const j = jamAt(); if (j < 0) return path(1)(); if (!outCache) outCache = path(1)().slice(0, -1).slice(0, Math.max(2, Math.ceil(j / Math.max(1, Math.floor(m.traj.length / 1500))))); return outCache; }),
+      width: cb(() => (m.tJam === null ? 3 : 2)), material: new Cesium.PolylineDashMaterialProperty({ color: cb(() => (m.tJam === null ? C.WHITE : C.fromCssColorString('#c5c8cc').withAlpha(0.8))), dashLength: cb(() => (m.tJam === null ? 1e6 : 10)) }) } });
+    add({ polyline: { positions: cb(() => { const j = jamAt(); return j < 0 ? [] : path(1, j)(); }), width: 3, material: C.WHITE, depthFailMaterial: C.WHITE.withAlpha(0.4) } });
+    add({ polyline: { positions: cb(() => { const j = jamAt(); return j < 0 ? [] : path(3, j)(); }), width: 3, material: est, depthFailMaterial: est.withAlpha(0.4) } });
     add({ position: groundCart(m.home[0], m.home[1], 1.5), point: { pixelSize: 14, color: C.WHITE, outlineColor: C.fromCssColorString('#202630'), outlineWidth: 3, disableDepthTestDistance: Infinity },
       label: { text: 'Home', font: '600 14px "Google Sans", sans-serif', fillColor: C.fromCssColorString('#202630'), showBackground: true, backgroundColor: C.WHITE, pixelOffset: new Cesium.Cartesian2(0, -24), disableDepthTestDistance: Infinity } });
     add({ position: cb(() => nedToCart(m.kf.x[0], m.kf.x[1], m.D)), point: { pixelSize: 12, color: est, outlineColor: C.WHITE, outlineWidth: 2, disableDepthTestDistance: Infinity, show: cb(() => m.tJam !== null) } });
@@ -200,12 +204,18 @@
     const C = Cesium.Color, b = m.bcs[fr.k], g = [];
     const fused = fr.status === 'fused', col = C.fromCssColorString(fused ? GREEN_MAP : '#80868b');
     if (fused) {
-      const ax = ellipseAxes(fr.cov);
-      g.push(viewer.entities.add({ position: groundCart(fr.fix[0], fr.fix[1], 0), ellipse: { semiMajorAxis: Math.max(ax.major, ax.minor + 1e-3), semiMinorAxis: ax.minor, rotation: -ax.rot + Math.PI / 2,
-        material: col.withAlpha(0.18), outline: false, classificationType: Cesium.ClassificationType.CESIUM_3D_TILE } }));
-      g.push(viewer.entities.add({ position: groundCart(fr.fix[0], fr.fix[1], 0.5), point: { pixelSize: 6, color: col, outlineColor: C.WHITE, outlineWidth: 1, disableDepthTestDistance: Infinity } }));
-      g.push(viewer.entities.add({ polyline: { positions: [groundCart(b.pe[0], b.pe[1], 0.5), groundCart(fr.fix[0], fr.fix[1], 0.5)], width: 1.5, clampToGround: true,
-        classificationType: Cesium.ClassificationType.CESIUM_3D_TILE, material: C.fromCssColorString(BLUE).withAlpha(0.9) } }));
+      // 1σ ellipse of the fix covariance, as geometry 1.5 m above our bare-earth grid (draping via classification needs the globe)
+      const ax = ellipseAxes(fr.cov), pts = [];
+      for (let i = 0; i <= 36; i++) {
+        const t = (i / 36) * 2 * Math.PI, u = ax.major * Math.cos(t), w = ax.minor * Math.sin(t);
+        const dn = u * Math.cos(ax.rot) - w * Math.sin(ax.rot), de = u * Math.sin(ax.rot) + w * Math.cos(ax.rot);
+        pts.push(groundCart(fr.fix[0] + dn, fr.fix[1] + de, 1.5));
+      }
+      g.push(viewer.entities.add({ polygon: { hierarchy: new Cesium.PolygonHierarchy(pts), perPositionHeight: true, material: col.withAlpha(0.2), outline: false } }));
+      g.push(viewer.entities.add({ polyline: { positions: pts, width: 1.5, material: col.withAlpha(0.9), depthFailMaterial: col.withAlpha(0.35) } }));
+      g.push(viewer.entities.add({ position: groundCart(fr.fix[0], fr.fix[1], 1.5), point: { pixelSize: 6, color: col, outlineColor: C.WHITE, outlineWidth: 1, disableDepthTestDistance: Infinity } }));
+      g.push(viewer.entities.add({ polyline: { positions: [groundCart(b.pe[0], b.pe[1], 1.5), groundCart(fr.fix[0], fr.fix[1], 1.5)], width: 1.5,
+        material: C.fromCssColorString(BLUE).withAlpha(0.9), depthFailMaterial: C.fromCssColorString(BLUE).withAlpha(0.35) } }));
     } else {
       g.push(viewer.entities.add({ position: groundCart(fr.fix[0], fr.fix[1], 0.5), billboard: { image: ICON_X, width: 14, height: 14, disableDepthTestDistance: Infinity } }));
     }
@@ -214,9 +224,9 @@
     fixEnts.forEach((grp, i) => {   // fade with age
       const a = 0.25 + 0.75 * (i + 1) / fixEnts.length, fusedG = !grp.some((e) => e.billboard);
       grp.forEach((e) => {
-        if (e.ellipse) e.ellipse.material = C.fromCssColorString(GREEN_MAP).withAlpha(0.22 * a);
+        if (e.polygon) e.polygon.material = C.fromCssColorString(GREEN_MAP).withAlpha(0.2 * a);
         if (e.point) e.point.color = C.fromCssColorString(fusedG ? GREEN_MAP : '#80868b').withAlpha(a);
-        if (e.polyline) e.polyline.material = C.fromCssColorString(BLUE).withAlpha(0.9 * a);
+        if (e.polyline) e.polyline.material = C.fromCssColorString(e.polyline.positions.getValue().length > 2 ? GREEN_MAP : BLUE).withAlpha(0.9 * a);
         if (e.billboard) e.billboard.color = C.WHITE.withAlpha(a);
       });
     });
@@ -271,6 +281,11 @@
     }
     $('bars').hidden = !(ours && last && m.tJam !== null);
   }
+  function warm(t) {   // inferno-like ramp: dark purple -> red -> orange -> pale yellow
+    const st = [[40, 11, 84], [120, 28, 109], [188, 55, 84], [237, 105, 37], [251, 180, 26], [252, 255, 164]];
+    const x = Math.min(0.9999, Math.max(0, t)) * (st.length - 1), i = Math.floor(x), f = x - i;
+    return [0, 1, 2].map((c) => Math.round(st[i][c] * (1 - f) + st[i + 1][c] * f));
+  }
   function drawRect(cap) { $('rectimg').getContext('2d').putImageData(cap.image, 0, 0); }
   function drawBc(m, fr) {   // breadcrumb image + model heatmap / soft-argmax / 1σ ellipse (+ truth marker)
     const b = m.bcs[fr ? fr.k : m.k ?? m.bcs.length - 1];
@@ -280,13 +295,13 @@
     $('bccap').textContent = `breadcrumb #${b.i}`;
     if (!fr || !fr.probs) return;
     const p = fr.probs, hm = S.hm || (S.hm = Object.assign(document.createElement('canvas'), { width: 15, height: 15 })), hc = hm.getContext('2d'), id = hc.createImageData(15, 15);
-    const pmax = Math.max(...p), rgb = [0x31, 0x5c, 0x91];
-    for (let k = 0; k < 225; k++) { const a = Math.min(1, Math.pow(p[k] / pmax, 0.3)); id.data.set([rgb[0], rgb[1], rgb[2], Math.round(225 * a)], k * 4); }
+    const pmax = Math.max(...p);
+    for (let k = 0; k < 225; k++) { const a = Math.min(1, Math.pow(p[k] / pmax, 0.3)); id.data.set([...warm(a), Math.round(255 * Math.min(1, 1.6 * a))], k * 4); }
     hc.putImageData(id, 0, 0);
     ctx.save();
     ctx.imageSmoothingEnabled = true;
-    ctx.globalAlpha = 0.8;
-    ctx.filter = 'blur(5px)';
+    ctx.globalAlpha = 0.55;
+    ctx.filter = 'blur(4px)';
     ctx.drawImage(hm, -8, -8, 240, 240);
     ctx.filter = 'none';   // shift (dy, dx) cell -> pixel 112 + 16·(dy, dx): the 15x15 grid spans [-8, 232]
     ctx.globalAlpha = 1;
@@ -296,7 +311,8 @@
     const tr2 = (sxx + syy) / 2, det = Math.sqrt(Math.max(((sxx - syy) / 2) ** 2 + sxy * sxy, 0));
     const l1 = tr2 + det, l2 = Math.max(tr2 - det, 0.25), ang = Math.atan2(l1 - sxx, sxy || 1e-9);
     const col = fr.status === 'fused' ? '#ffffff' : '#c5c8cc';
-    ctx.strokeStyle = col; ctx.lineWidth = 1.5;
+    ctx.strokeStyle = col; ctx.lineWidth = 2;
+    ctx.shadowColor = 'rgba(0,0,0,.6)'; ctx.shadowBlur = 2;
     ctx.beginPath(); ctx.ellipse(cx, cy, Math.max(2, Math.sqrt(l1)), Math.max(2, Math.sqrt(l2)), Math.abs(sxy) < 1e-9 ? (sxx >= syy ? 0 : Math.PI / 2) : ang, 0, 2 * Math.PI); ctx.stroke();
     ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(cx - 9, cy); ctx.lineTo(cx - 3, cy); ctx.moveTo(cx + 3, cy); ctx.lineTo(cx + 9, cy); ctx.moveTo(cx, cy - 9); ctx.lineTo(cx, cy - 3); ctx.moveTo(cx, cy + 3); ctx.lineTo(cx, cy + 9); ctx.stroke();

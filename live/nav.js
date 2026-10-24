@@ -70,18 +70,21 @@
         const dn = P[i + 1][0] - P[i][0], de = P[i + 1][1] - P[i][1], L = hyp(dn, de);
         this.len.push(L); this.u.push([dn / L, de / L]); this.s0.push(this.s0[i] + L);
       }
-      this.total = this.s0[this.s0.length - 1]; this.i = 0;
+      this.total = this.s0[this.s0.length - 1]; this.i = 0; this.s = 0;
     }
     project(p) {
       let best = null;
-      for (let i = this.i; i < Math.min(this.i + 6, this.len.length); i++) {
+      // monotone and local: only segments starting within 80 m ahead of the last projection, so a self-crossing route
+      // (cx "crossing" shapes) cannot jump to the later pass over the same spot
+      for (let i = this.i; i < Math.min(this.i + 6, this.len.length) && (i === this.i || this.s0[i] <= this.s + 80); i++) {
         const t = Math.min(Math.max((p[0] - this.P[i][0]) * this.u[i][0] + (p[1] - this.P[i][1]) * this.u[i][1], 0), this.len[i]);
         const d = hyp(p[0] - (this.P[i][0] + t * this.u[i][0]), p[1] - (this.P[i][1] + t * this.u[i][1]));
         if (best === null || d < best[0] - 1e-6) best = [d, i, t];
       }
       if (!best) return this.total;
       this.i = best[1];
-      return this.s0[best[1]] + best[2];
+      this.s = this.s0[best[1]] + best[2];
+      return this.s;
     }
     seg(s) { s = Math.min(Math.max(s, 0), this.total); let i = 0; while (i < this.len.length - 1 && this.s0[i + 1] <= s) i++; return [i, s]; }
     point(s) { const [i, ss] = this.seg(s); return [this.P[i][0] + (ss - this.s0[i]) * this.u[i][0], this.P[i][1] + (ss - this.s0[i]) * this.u[i][1]]; }

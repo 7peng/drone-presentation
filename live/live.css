@@ -44,6 +44,10 @@ figcaption { font: 500 11px "Google Sans", sans-serif; color: var(--muted); text
 #nadir { width: 224px; height: 224px; transform: scale(calc(150 / 224)); transform-origin: 0 0; }
 #nadir .cesium-widget-credits { display: none; }
 #rectimg, #bcimg { width: var(--thumb); height: var(--thumb); display: block; border-radius: 4px; background: #222; }
+/* presentation mode: debug rows hidden, so the pipeline strip can be ~1.4x larger */
+body.present { --thumb: 210px; }
+body.present #nadir { transform: scale(calc(210 / 224)); }
+body.present #strip { max-width: 44vw; }
 @media (max-width: 700px) {
   .top-left { right: 12px; width: auto; }
   #strip { max-width: none; right: 12px; justify-content: center; }

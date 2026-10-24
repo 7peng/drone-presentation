@@ -131,3 +131,15 @@ body.draft .tbd { outline: 3px dashed #e0a800; outline-offset: 6px; }
 .chart .dot { stroke: #fff; stroke-width: 2; }
 .chart .med { stroke: var(--ink); stroke-width: 3; stroke-linecap: round; }
 .chart .med-l { font: 500 22px var(--sans); fill: var(--ink); }
+
+/* Compact table and route small-multiples (generalisation slide) */
+table.compact { font-size: 27px; }
+table.compact th, table.compact td { padding: 17px 18px; }
+table.compact th:first-child, table.compact td:first-child { padding-left: 0; }
+.routes { width: 100%; height: auto; display: block; }
+.routes .cell { fill: var(--wash); stroke: none; }
+.routes .route { fill: none; stroke: var(--ink); stroke-width: 2.4; stroke-linejoin: round; }
+.routes .home { fill: var(--ink); }
+.routes .jam { stroke: var(--warn); stroke-width: 3.5; stroke-linecap: round; fill: none; }
+.routes .name { font: 600 22px var(--heading); fill: var(--ink); }
+.routes .sub { font: 400 18px var(--sans); fill: var(--muted); }

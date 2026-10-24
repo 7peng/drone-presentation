@@ -12,7 +12,7 @@ Google Photorealistic 3D Tiles use, so no geoid correction is needed.
 Scenarios:
   stock  demo/mission_rth + ekf/mission_rth/jam_rth (seed index 4), closed-loop composition as in
          demo/render_demo.py: estimate(t) = planned(t), truth(t) = planned(t) - LPF_2s(e(t)).
-  ours   eval_cl/sweep/mission_012/log.npz (median mission) and eval_cl/mission_000/log.npz.
+  ours   eval_cl/sweep_v3/mission_012/log.npz (model v3: Magdeburg held out of training).
 """
 import json
 import math
@@ -143,6 +143,8 @@ def export_ours(fr, d, mid, title):
     tr = tr[i0:]
     t = tr[:, 0]
     tn = np.arange(t[0], t[-1] + 1e-6, 1.0 / RATE_HZ)
+    if tn[-1] < t[-1] - 1e-6:
+        tn = np.r_[tn, t[-1]]           # keep the exact final sample, so the HUD matches final_dist_m
     truth = resample(t, tr[:, 1:4], tn)
     est = resample(t, tr[:, 4:7], tn)
     sig = np.interp(tn, t, tr[:, 13])
@@ -177,10 +179,9 @@ def main():
     os.makedirs(OUT, exist_ok=True)
     jobs = [
         ("stock.json", lambda: export_stock(fr)),
-        ("ours_m012.json", lambda: export_ours(fr, f"{WORK}/eval_cl/sweep/mission_012", "ours_mission_012",
-                                               "Our vision system (median mission)")),
-        ("ours_m000.json", lambda: export_ours(fr, f"{WORK}/eval_cl/mission_000", "ours_mission_000",
-                                               "Our vision system (mission 000)")),
+        # v3: trained without Magdeburg (US areas only); no-match gate calibrated on local flights (deploy_mdcal)
+        ("ours.json", lambda: export_ours(fr, f"{WORK}/eval_cl/sweep_v3/mission_012", "ours_v3_mission_012",
+                                          "Our system (v3, Magdeburg never seen in training)")),
     ]
     origin = {"lat0": fr.lat0, "lon0": fr.lon0, "ground_h_ellipsoid": fr.h0, "ground0_enu_z": round(fr.ground0, 2)}
     for name, fn in jobs:

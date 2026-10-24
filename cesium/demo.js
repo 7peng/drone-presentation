@@ -9,10 +9,10 @@
   const embedded = params.has('embed');
   if (embedded) document.body.classList.add('embed');
   const TOKEN_KEY = 'homeward.cesiumIonToken';
-  const OURS_FILE = params.get('mission') === '000' ? 'ours_m000' : 'ours_m012';
+  // ours = model v3 (Magdeburg held out of training). Fallback videos are pre-rendered (rth video: model v1).
   const SCN = {
-    stock: { file: 'data/stock.json', video: '../media/jamming_failure.mp4' },
-    ours: { file: `data/${OURS_FILE}.json`, video: `../media/rth_mission${OURS_FILE.slice(-3)}.mp4` },
+    stock: { file: 'data/stock.json', video: '../media/jamming_failure.mp4', poster: '../media/jamming_failure_poster.jpg' },
+    ours: { file: 'data/ours.json', video: '../media/rth_mission012.mp4', poster: '../media/rth_mission012_poster.jpg' },
   };
   const SPEEDS = ['auto', 1, 5, 10, 20, 40];
   const $ = (id) => document.getElementById(id);
@@ -42,6 +42,7 @@
     $('fallback').hidden = false;
     $('fb-why').textContent = why;
     const v = $('fb-video');
+    v.poster = SCN[scenario].poster;
     v.src = SCN[scenario].video;
     v.play().catch(() => {});
   }
@@ -215,7 +216,7 @@
       card.hidden = false;
       card.innerHTML = stock
         ? `<h3>Thinks it's home. Actually ${Math.round(e)} m away.</h3>`
-        : `<h3>Home, ${D.result.final_m} m from take-off.</h3>`;
+        : `<h3>Home, ${fmtM(horiz(geo(D.truth, simT), D.home))} from take-off.</h3>`;   // same number as the HUD
     } else card.hidden = true;
     if (!scrubbing) $('scrub').value = Math.round((simT / D.T) * 1000);
     $('b-play').textContent = playing ? 'Pause' : simT >= D.T ? 'Replay' : 'Play';
@@ -282,7 +283,7 @@
     simT = 0; playing = autoplay; headingSm = null;
     buildScene();
     setupHud();
-    if (!$('fallback').hidden) $('fb-video').src = SCN[name].video;
+    if (!$('fallback').hidden) { $('fb-video').poster = SCN[name].poster; $('fb-video').src = SCN[name].video; }
     setCam(cam);
   }
 
@@ -325,7 +326,7 @@
   });
   window.addEventListener('message', (e) => {
     if (e.data?.type !== 'demo-scenario' || !SCN[e.data.scenario]) return;
-    if (!window.__demoReady) { scenario = e.data.scenario; if (!$('fallback').hidden) $('fb-video').src = SCN[scenario].video; return; }
+    if (!window.__demoReady) { scenario = e.data.scenario; if (!$('fallback').hidden) { $('fb-video').poster = SCN[scenario].poster; $('fb-video').src = SCN[scenario].video; } return; }
     setScenario(e.data.scenario, !!e.data.autoplay);
   });
 

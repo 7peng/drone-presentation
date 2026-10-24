@@ -204,13 +204,14 @@
   </section>
 
   <!-- ============================================================ 8. LIVE: OURS -->
+  <!-- Live-model hook: add data-demo-src="live/?embed=1" to switch this slide to the live/ page (wgpeng/live-model). -->
   <section class="slide s-demo" data-demo="ours" data-title="Live: our system" data-time="40">
     <div>
       <p class="eyebrow">Live replay</p>
       <h2>Loading the 3D replay…</h2>
     </div>
     <div class="notes">
-      <p><b>~40 s.</b> Same terrain, our system, closed loop: the drone actually flies on our estimate. This is the median mission of 32. Green is our estimate, white the truth: they stay together. Dots on the ground are the breadcrumbs. Press T at the end: home within ~4 m. Press 1 to flip back to stock PX4 for contrast.</p>
+      <p><b>~40 s.</b> Same terrain, our system, closed loop: the drone actually flies on our estimate. This is the v3 model, which never saw this country in training (mission 12 of 32). Green is our estimate, white the truth: they stay together. Dots on the ground are the breadcrumbs. Press T at the end: home within ~2 m. Press 1 to flip back to stock PX4 for contrast.</p>
     </div>
   </section>
 
@@ -219,7 +220,7 @@
     <h2>What the drone sees on the way back</h2>
     <figure>
       <video data-src="media/rth_mission012.mp4" poster="media/rth_mission012_poster.jpg" muted loop playsinline preload="none"></video>
-      <figcaption>Median mission of 32, sped up. Top: live frame after rectification next to the breadcrumb it is matched against. Left: true return (white) and estimate (green) over the map.</figcaption>
+      <figcaption>Mission 12 (model v1), sped up. Top: live frame after rectification next to the breadcrumb it is matched against. Left: true return (white) and estimate (green) over the map.</figcaption>
     </figure>
     <div class="notes">
       <p><b>~20 s.</b> Top middle is what the camera sees after rectification; top right is the breadcrumb it's looking for. The model says "you are 4 m south-east of it, ± 4 m", and the EKF moves on to the next breadcrumb. Fix yield is 99.7%.</p>
@@ -350,16 +351,52 @@
   </section>
 
   <!-- ============================================================ 12. HELD-OUT -->
-  <section class="slide s-heldout" data-title="Unseen terrain" data-time="10">
-    <p class="eyebrow">Generalisation <span class="tag" style="margin-left:16px">in progress</span></p>
-    <h2>On terrain it never saw</h2>
-    <div class="metrics tbd" style="max-width:1300px">
-      <div class="metric"><div class="value"><strong>5.5 m</strong></div><p>median offset error on Magdeburg,<br>model trained without it (v3)</p></div>
-      <div class="metric"><div class="value">5.0 m</div><p>same test, model trained with it</p></div>
+  <section class="slide s-heldout" data-title="Unseen country" data-time="20">
+    <p class="eyebrow">Generalisation · Magdeburg held out of training</p>
+    <h2>It works in a country it never saw</h2>
+    <p class="lead" style="font-size:34px; margin-bottom:36px">Trained on US terrain only. One threshold is retuned on ~50 local flights.</p>
+    <div class="row" style="grid-template-columns: 1fr 470px; gap: 90px;">
+      <table class="compact">
+        <thead><tr><th></th><th>v3 · never saw it</th><th>v2 · trained on it</th></tr></thead>
+        <tbody>
+          <tr><td>Home within 10 m <span class="sub">closed loop</span></td><td class="hl">32 / 32</td><td>32 / 32</td></tr>
+          <tr><td>Distance from home, median / p90</td><td class="hl">3.4 / 7.2 m</td><td>3.3 / 7.5 m</td></tr>
+          <tr><td>Offset error, median <span class="sub">offline</span></td><td class="hl">5.3 m</td><td>5.0 m</td></tr>
+          <tr><td>Errors inside 1σ <span class="sub">ideal 39%</span></td><td class="hl">38%</td><td>37%</td></tr>
+          <tr><td>False fixes <span class="sub">5.3% with the US threshold</span></td><td class="hl">1.0%</td><td>–</td></tr>
+          <tr class="tbd"><td>Complex routes, home within 10 m</td><td class="hl">running</td><td>–</td></tr>
+        </tbody>
+      </table>
+      <figure>
+<!-- routes-figure:start -->
+<svg class="routes" viewBox="0 0 430 478" role="img" aria-label="Four example complex routes: zig-zag, survey, orbit, self-crossing">
+<rect x="0" y="0" width="200" height="200" class="cell"/>
+<polyline class="route" points="78.0,171.5 18.0,153.6 60.1,99.3 136.4,113.7 124.4,78.7 154.9,104.4 182.0,28.5"/>
+<rect x="71.0" y="164.5" width="14" height="14" class="home"/>
+<path d="M155.0,73.7L171.0,89.7M171.0,73.7L155.0,89.7" class="jam"/>
+<text x="0" y="226" class="name">Zig-zag</text>
+<rect x="230" y="0" width="200" height="200" class="cell"/>
+<polyline class="route" points="277.9,174.5 248.0,60.8 292.7,49.1 322.6,162.7 367.3,150.9 337.4,37.3 382.1,25.5 412.0,139.2"/>
+<rect x="270.9" y="167.5" width="14" height="14" class="home"/>
+<path d="M404.0,131.2L420.0,147.2M420.0,131.2L404.0,147.2" class="jam"/>
+<text x="230" y="226" class="name">Survey</text>
+<rect x="0" y="244" width="200" height="200" class="cell"/>
+<polyline class="route" points="72.3,426.0 119.5,339.6 120.7,336.6 121.2,333.4 120.8,330.1 119.7,327.1 118.0,324.4 115.6,322.2 112.7,320.7 109.6,319.8 106.4,319.8 103.2,320.5 100.3,322.0 97.9,324.1 96.0,326.7 94.8,329.7 94.3,332.9 94.7,336.1 95.8,339.2 97.6,341.9 99.9,344.1 102.8,345.6 105.9,346.4 109.1,346.5 112.3,345.8 115.2,344.3 117.7,342.2 119.5,339.6 139.8,302.4 141.2,299.5 142.3,296.4 142.9,293.1 143.2,289.9 143.0,286.6 142.5,283.4 141.6,280.2 140.3,277.2 138.7,274.3 136.8,271.7 134.5,269.3 132.0,267.3 129.2,265.5 126.3,264.1 123.2,263.0 120.0,262.3 116.7,262.0 113.4,262.1 110.2,262.6 107.0,263.5 104.0,264.7 101.1,266.3 98.5,268.2 96.1,270.5 56.8,311.6"/>
+<rect x="65.3" y="419.0" width="14" height="14" class="home"/>
+<path d="M48.8,303.6L64.8,319.6M64.8,303.6L48.8,319.6" class="jam"/>
+<text x="0" y="470" class="name">Orbit</text>
+<rect x="230" y="244" width="200" height="200" class="cell"/>
+<polyline class="route" points="349.4,424.5 248.0,284.3 412.0,284.0 326.7,399.7 345.1,263.5"/>
+<rect x="342.4" y="417.5" width="14" height="14" class="home"/>
+<path d="M337.1,255.5L353.1,271.5M353.1,255.5L337.1,271.5" class="jam"/>
+<text x="230" y="470" class="name">Self-crossing</text>
+</svg>
+<!-- routes-figure:end -->
+        <figcaption><span class="figure-label">Complex routes, running now:</span> 2.3–5.9 km, altitude changes, some jammed mid-route (✕). ■ home.</figcaption>
+      </figure>
     </div>
-    <p class="caption tbd" style="margin-top:28px">Early reading while v3 trains. Final numbers to come.</p>
     <div class="notes">
-      <p><b>~10 s.</b> The obvious question: does it only work because it trained on this terrain? We're training v3 without Magdeburg at all. Early reading: 5.5 m on the unseen area vs 5.0 m when it was in training. <i>[Update with final v3 numbers.]</i></p>
+      <p><b>~20 s.</b> The obvious question: does it only work because it trained on this terrain? v3 never saw Magdeburg, or Germany at all: it trained on US terrain only. Closed loop it still gets 32 of 32 home, median 3.4 m, p90 7.2 m, essentially the same as the model that trained here. The one thing we retune is the no-match threshold, on about 50 local flights: with the US threshold, 5.3% of fixes are false; retuned, 1.0%. Complex routes, zig-zags, surveys, orbits, are running now. Same 32 missions as the results slide; stock PX4 got 0 of 32 home. A false fix is a wrong fix that gets past the no-match gate. <i>[Update the complex-routes row with final numbers.]</i></p>
     </div>
   </section>
 

@@ -39,13 +39,17 @@ function render() {
   });
 
   const isDemo = slides[idx].hasAttribute('data-demo');
+  // One iframe serves every demo slide. data-demo="stock" | "ours" picks the scenario; data-demo-src (optional,
+  // default: the iframe's data-src, i.e. cesium/) lets a slide load another page, e.g. live/?embed=1.
+  const srcOf = (el) => new URL(el?.dataset.demoSrc || demoFrame.dataset.src, location.href).href;
+  const preload = isDemo ? slides[idx] : slides[idx + 1]?.hasAttribute('data-demo') ? slides[idx + 1] : null;
   // Preload the demo one slide early so WebGL is warm when we arrive.
-  if ((isDemo || slides[idx + 1]?.hasAttribute('data-demo')) && !demoFrame.src) {
-    demoFrame.src = demoFrame.dataset.src;
+  if (preload && (isDemo || !demoFrame.src) && demoFrame.src !== srcOf(preload)) {
+    demoFrame.src = srcOf(preload);
+    demoScenario = null;              // new page: re-send the scenario once it has loaded
   }
   demoLayer.classList.toggle('is-active', isDemo);
   if (isDemo) {
-    // One iframe serves every demo slide; data-demo="stock" | "ours" picks the scenario.
     const scenario = slides[idx].dataset.demo;
     if (scenario && scenario !== demoScenario) { demoScenario = scenario; sendScenario(); }
     setTimeout(() => demoFrame.contentWindow?.focus(), 50);

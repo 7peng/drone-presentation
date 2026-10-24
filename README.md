@@ -12,6 +12,7 @@ It is a static site with no build step.
 - `assets/img/`: still figures. `assets/css/tokens.css` holds the shared palette and fonts.
 - `tools/export_trajectories.py`: regenerates `cesium/data/*.json` from the simulation logs.
 - `tools/make_results_chart.py`: regenerates the per-mission chart on the results slide (inline SVG in `index.html`).
+- `tools/make_routes_figure.py`: regenerates the complex-route small multiples on the generalisation slide.
 
 ## Run locally
 
@@ -67,7 +68,9 @@ CesiumJS is pinned to `cesium@1.146.0` from jsDelivr.
 | R | restart |
 | PageDown / PageUp | next / previous slide (forwarded to the deck) |
 
-`cesium/?scenario=ours` opens on our system. `?mission=000` swaps in the second recorded mission. `?autoplay` starts playback.
+`cesium/?scenario=ours` opens on our system. `?autoplay` starts playback.
+
+**Live-model hook.** Each live slide can load a different page in the shared iframe: add `data-demo-src="live/?embed=1"` to slide 8 to point it at `live/` (from `wgpeng/live-model`). The deck still posts `{type: 'demo-scenario', scenario}` to whatever page is loaded.
 
 ## Data
 
@@ -75,7 +78,7 @@ CesiumJS is pinned to `cesium@1.146.0` from jsDelivr.
 the jam point and event times. It is exported from:
 
 - **Stock PX4**: `drone-work/demo/mission_rth` plus the PX4 EKF2 replay `ekf/mission_rth/jam_rth` (seed index 4). This is the same closed-loop composition as the pre-rendered video: the estimate follows the plan, and the truth is the plan minus the low-passed EKF2 error.
-- **Our system**: `drone-work/eval_cl/sweep/mission_012/log.npz` (the median mission) and `eval_cl/mission_000/log.npz`.
+- **Our system**: `drone-work/eval_cl/sweep_v3/mission_012/log.npz`, model v3. Magdeburg was held out of training (US areas only), and the no-match gate was calibrated on local flights (`deploy_mdcal`).
 
 Positions are converted from the area's local NED frame (rural_main10: `lat0 = 52.02`, `lon0 = 11.45`, tangent plane
 at 120 m ellipsoidal height, with D measured from the origin ground) to WGS84 through ECEF. The paths were checked
@@ -90,10 +93,10 @@ against independent satellite imagery: field edges, roads and the railway line u
 Open `/?draft` to outline every placeholder in yellow:
 
 - the team name and track on slide 1;
-- the held-out (v3) numbers on slide 12.
+- the complex-routes row on slide 12, once that sweep finishes.
 
-A newer horizontal-chase failure video is still rendering. When it's ready, encode it as `media/jamming_failure.mp4`
-(see the media note above). The replay's stock-PX4 fallback uses that file.
+`media/jamming_failure.mp4` is the final horizontal-chase render (v3c, 720p, 10.7 MB). Its poster is
+`demo/stills/1_gps_ok.png`. The `rth_mission012.mp4` video (slide 9, and the fallback for "ours") is from model v1.
 
 ## Deploy to GitHub Pages
 

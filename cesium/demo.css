@@ -67,3 +67,5 @@ body.embed .panel, body.embed .bar { font-size: 15px; }
   .top-right { top: auto; bottom: 92px; width: 220px; }
   .legend { bottom: 138px; }
 }
+body.solo .seg[role=tablist] { display: none; }
+body.solo .top-left .eyebrow { margin: 0; }

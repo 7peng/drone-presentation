@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Homeward</title>
-<meta name="description" content="Vision breadcrumbs: getting a drone home under GPS jamming. Hackathon deck with a live CesiumJS replay.">
+<meta name="description" content="Vision breadcrumbs: getting a drone home under GPS jamming. Five-slide hackathon deck with a live 3D replay and the live in-browser model.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23202630'/%3E%3Cpath d='M8 20 16 10l8 10' fill='none' stroke='%23fff' stroke-width='3'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -35,365 +35,114 @@
     </div>
   </section>
 
-  <!-- ============================================================ 2. PROBLEM -->
-  <section class="slide s-problem" data-steps="3" data-title="The problem" data-time="30">
-    <p class="eyebrow">The problem</p>
-    <h2>Jam the GPS and stock PX4 no longer knows where it is</h2>
-    <div class="metrics">
-      <div class="metric">
-        <div class="value"><strong>5 s</strong></div>
-        <p>until EKF2 flags the position invalid and the failsafe descends</p>
-      </div>
-      <div class="metric step" data-step="1">
-        <div class="value">60<span>→</span><strong>500 m</strong></div>
-        <p>inertial-only drift at +60 s and +3 min</p>
-      </div>
-      <div class="metric step" data-step="2">
-        <div class="value"><strong>847 m</strong></div>
-        <p>median miss if it flew home anyway</p>
-        <small>32 missions · p90 4.2 km</small>
-      </div>
-      <div class="metric step" data-step="3">
-        <div class="value"><strong>Never</strong></div>
-        <p>detects a slow GPS spoof (1 m/s drag)</p>
-      </div>
+  <!-- ============================================================ 2. FAILURE (stock PX4 replay) -->
+  <section class="slide s-demo" data-demo="stock" data-demo-src="cesium/?embed=1&amp;solo=1" data-title="Stock PX4 under jamming" data-time="50">
+    <div>
+      <p class="eyebrow">Replay</p>
+      <h2>Loading the 3D replay…</h2>
+      <p class="muted">If it doesn't load, open <strong>cesium/?solo=1</strong> directly.</p>
     </div>
-    <p class="footnote">Real PX4 EKF2 (replay harness) on simulated IMU, baro, compass and GPS logs. Drift numbers are medians across noise seeds.</p>
     <div class="notes">
-      <p><b>~30 s · 3 clicks.</b></p>
+      <p><b>~50 s.</b> Keys: <b>Space</b> play/pause · <b>T</b> top-down · <b>C</b> chase/orbit · <b>,</b> <b>.</b> scrub · <b>PageDown</b> next slide.</p>
       <ul>
-        <li>Under jamming, PX4's estimator gives up after 5 seconds, declares position invalid, and the failsafe descends wherever it is.</li>
-        <li>(click) If you ignore that and fly on the IMU alone, the error is ~60 m after a minute, ~500 m after three.</li>
-        <li>(click) Over our 32 test missions it would have missed home by a median of 847 m, and by 4 km in the worst 10%.</li>
-        <li>(click) Spoofing is worse: a slow 1 m/s drag is never detected. The drone follows the fake position.</li>
+        <li>Real terrain, real PX4 EKF2. A 2.7 km zig-zag survey flight. White is where the drone really is; red is where its estimator thinks it is.</li>
+        <li>GPS is jammed at 85% of the route. The drone turns for home on IMU, baro and compass. The outbound plays at double speed.</li>
+        <li>Watch the red ghost and the drone separate. Press T at the end: it thinks it's home, but it's ~180 m away.</li>
+        <li>Caveat: stock PX4 actually flags the position invalid 5 s after the jam and would descend where it is; we keep it flying to show the drift.</li>
       </ul>
     </div>
   </section>
 
-  <!-- ============================================================ 3. LIVE: STOCK -->
-  <section class="slide s-demo" data-demo="stock" data-title="Live: stock PX4" data-time="30">
+  <!-- ============================================================ 3. HOW IT WORKS -->
+  <section class="slide s-how" data-title="How it works" data-time="45">
+    <p class="eyebrow">Our system</p>
+    <h2>Recognise the way home</h2>
+    <p class="lead" style="font-size:34px; margin-bottom:56px">Outbound it remembers what the ground looks like; on the way back it matches each frame to the breadcrumb it expects.</p>
+    <svg class="sys diagram2" viewBox="0 0 1600 600" role="img" aria-label="Camera, rectify, encoder; outbound the grid is saved as a breadcrumb every 20 m; on the return the live grid is matched against the breadcrumb, the offset gives a position fix for PX4 EKF2, and the controller flies breadcrumb to breadcrumb home">
+      <defs><marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#626b76"/></marker><marker id="ar2b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#315c91"/></marker></defs>
+      <rect x="0" y="300" width="196" height="140" rx="8" class="plain"/>
+        <text x="98.0" y="346" class="t" text-anchor="middle">Camera</text>
+        <text x="98.0" y="380" class="s" text-anchor="middle">downward frame</text>
+      <rect x="234" y="300" width="196" height="140" rx="8" class="ours"/>
+        <text x="332.0" y="346" class="t" text-anchor="middle">Rectify</text>
+        <text x="332.0" y="380" class="s" text-anchor="middle">level · north-up</text>
+        <text x="332.0" y="404" class="s" text-anchor="middle">scale from altitude</text>
+      <rect x="468" y="300" width="196" height="140" rx="8" class="ours"/>
+        <text x="566.0" y="346" class="t" text-anchor="middle">Encoder</text>
+        <text x="566.0" y="380" class="s" text-anchor="middle">frozen MobileNetV3-S</text>
+        <text x="566.0" y="404" class="s" text-anchor="middle">+ head → 14×14×16</text>
+      <rect x="702" y="300" width="196" height="140" rx="8" class="ours"/>
+        <text x="800.0" y="346" class="t" text-anchor="middle">Match</text>
+        <text x="800.0" y="380" class="s" text-anchor="middle">live vs breadcrumb</text>
+        <text x="800.0" y="404" class="s" text-anchor="middle">±7 cells · softmax</text>
+      <rect x="936" y="300" width="196" height="140" rx="8" class="ours"/>
+        <text x="1034.0" y="346" class="t" text-anchor="middle">Fix</text>
+        <text x="1034.0" y="380" class="s" text-anchor="middle">breadcrumb position</text>
+        <text x="1034.0" y="404" class="s" text-anchor="middle">− offset</text>
+      <rect x="1170" y="300" width="196" height="140" rx="8" class="px4"/>
+        <text x="1268.0" y="346" class="t" text-anchor="middle">PX4 EKF2</text>
+        <text x="1268.0" y="380" class="s" text-anchor="middle">+ IMU, baro,</text>
+        <text x="1268.0" y="404" class="s" text-anchor="middle">compass</text>
+      <rect x="1404" y="300" width="196" height="140" rx="8" class="plain"/>
+        <text x="1502.0" y="346" class="t" text-anchor="middle">Controller</text>
+        <text x="1502.0" y="380" class="s" text-anchor="middle">breadcrumb to</text>
+        <text x="1502.0" y="404" class="s" text-anchor="middle">breadcrumb, home</text>
+      <path d="M199,370.0 H229" class="ln" marker-end="url(#ar2)"/>
+      <path d="M433,370.0 H463" class="ln" marker-end="url(#ar2)"/>
+      <path d="M667,370.0 H697" class="ln" marker-end="url(#ar2)"/>
+      <path d="M901,370.0 H931" class="ln" marker-end="url(#ar2)"/>
+      <path d="M1135,370.0 H1165" class="ln" marker-end="url(#ar2)"/>
+      <path d="M1369,370.0 H1399" class="ln" marker-end="url(#ar2)"/>
+      <rect x="635.0" y="40" width="330" height="120" rx="8" class="ours"/>
+      <text x="800.0" y="86" class="t" text-anchor="middle">Breadcrumb</text>
+      <text x="800.0" y="118" class="s" text-anchor="middle">grid + GPS position · ~6 KB</text>
+      <path d="M566.0,296 V100 H629.0" class="fb" marker-end="url(#ar2b)"/>
+      <text x="552.0" y="214" class="labb" text-anchor="end">outbound</text>
+      <text x="552.0" y="242" class="labb" text-anchor="end">every 20 m</text>
+      <path d="M800.0,164 V294" class="fb" marker-end="url(#ar2b)"/>
+      <text x="814.0" y="238" class="labb">on the return</text>
+      <path d="M800.0,446 V462" class="dot"/>
+      <text x="800.0" y="492" class="o" text-anchor="middle">offset (N, E) m</text>
+      <text x="800.0" y="522" class="o" text-anchor="middle">uncertainty, 2×2 cov</text>
+      <text x="800.0" y="552" class="o" text-anchor="middle">arrived?</text>
+      <text x="800.0" y="582" class="o" text-anchor="middle">no-match?</text>
+      </svg>
+    <div class="notes">
+      <p><b>~45 s.</b> Each downward frame is rectified using the flight controller's attitude and altitude: levelled, rotated north-up, scaled. A small frozen MobileNetV3 encoder turns it into a 14 by 14 grid of 16 numbers. On the way out, while GPS works, we save that grid every 20 m with its GPS position: a breadcrumb, about 3 KB. On the way back, the live grid is slid over the expected breadcrumb by up to 7 cells, a softmax picks the offset, and the model also says how sure it is, whether we've arrived, and whether this is no match at all. Breadcrumb position minus offset is a position fix; it goes into stock PX4 EKF2 like a visual-odometry camera, and the controller flies breadcrumb to breadcrumb home.</p>
+    </div>
+  </section>
+
+  <!-- ============================================================ 4. LIVE (in-browser model) -->
+  <section class="slide s-demo" data-demo="ours" data-demo-src="live/?embed=1&amp;mission=cx_001&amp;start=jam" data-title="Our system, live" data-time="60">
     <div>
-      <p class="eyebrow">Live replay</p>
-      <h2>Loading the 3D replay…</h2>
-      <p class="muted">If it doesn't load, open <strong>cesium/</strong> directly.</p>
+      <p class="eyebrow">Live</p>
+      <h2>Loading the live model…</h2>
+      <p class="muted">If it doesn't load, open <strong>live/?mission=cx_001&amp;start=jam</strong> directly.</p>
     </div>
     <div class="notes">
-      <p><b>~30 s.</b> Keys: <b>Space</b> play/pause · <b>T</b> top-down · <b>C</b> chase/orbit · <b>,</b> <b>.</b> scrub · <b>PageDown</b> next slide.</p>
-      <ul>
-        <li>This is a real PX4 EKF2 replay over real 3D terrain. White is where the drone is; red is where it thinks it is.</li>
-        <li>GPS is jammed 2.6 km out. It turns for home on IMU, baro and compass.</li>
-        <li>Press T at the end: it "arrives" home, but it's ~540 m away. Across 10 noise seeds the median miss is 681 m.</li>
-        <li>Honest caveat: stock PX4 would actually descend 5 s after the jam. We disabled that failsafe to show the drift.</li>
-      </ul>
+      <p><b>~60 s.</b> Same mission, same jam point. Now the model runs live in this browser on every frame and flies the drone home on its own fixes. Point at the live frame vs the breadcrumb, the offset arrow, and the estimate staying on the drone. It arrives home within a few metres.</p>
     </div>
   </section>
 
-  <!-- ============================================================ 4. IDEA -->
-  <section class="slide s-idea" data-steps="1" data-title="Vision breadcrumbs" data-time="30">
-    <p class="eyebrow">Our idea</p>
-    <h2>Vision breadcrumbs</h2>
-    <p class="lead">Remember what the ground looked like on the way out. Recognise it on the way back.</p>
-    <div class="steps">
-      <div><b><em>Out · GPS OK</em>Drop breadcrumbs</b><span>Every ~20 m, save a 2 KB descriptor of the downward camera, plus the EKF position.</span></div>
-      <div><b><em>Back · GPS jammed</em>Match the next one</b><span>Rectify the frame (level, north-up, scaled from attitude + baro) and match it to the expected breadcrumb: offset in metres, uncertainty, arrival, no-match.</span></div>
-      <div><b><em>Fuse</em>Into PX4 as vision</b><span>The fix enters PX4 EKF2 through the standard external-vision (VIO) interface. No estimator changes.</span></div>
+  <!-- ============================================================ 5. METRICS -->
+  <section class="slide s-metrics" data-title="Size and memory" data-time="30">
+    <p class="eyebrow">Footprint · ours vs ORB-SLAM3</p>
+    <h2>Fits on the drone. SLAM doesn't.</h2>
+    <div class="metrics cmp">
+      <div class="metric"><p class="k">Model</p><div class="value"><strong>5 MB</strong></div><p>vs <b>~450 MB</b> vocabulary</p><small>1.1 M parameters, fp32</small></div>
+      <div class="metric"><p class="k">Memory</p><div class="value"><strong>~30 MB</strong></div><p>vs <b>1.3 GB</b></p><small>model + inference, measured</small></div>
+      <div class="metric"><p class="k">Map per km</p><div class="value"><strong>0.3 MB</strong></div><p>vs <b>9–47 MB</b></p><small>50 breadcrumbs × 6 KB</small></div>
     </div>
-    <div class="callout step" data-step="1"><p><strong>Spoofing comes free:</strong> GPS is dropped when it disagrees with vision + IMU by more than 12 m.</p></div>
+    <p class="footnote">ORB-SLAM3 on the same Magdeburg missions (7 runs, peak RAM median; map from atlas saves). Ours: ONNX Runtime CPU, models + inference.</p>
     <div class="notes">
-      <p><b>~30 s · 1 click.</b> Hansel and Gretel for drones. Outbound, while GPS still works, we save a tiny fingerprint of the ground every 20 metres, tagged with where we were. On the way back we look down, straighten the image using the flight controller's attitude and the barometer, and ask the model: how far am I from the breadcrumb I expect next? That offset goes into PX4 as if it came from a visual odometry camera. (click) And because vision gives an independent position, a spoofed GPS that drifts away from it gets dropped.</p>
-    </div>
-  </section>
-
-  <!-- ============================================================ 5. SYSTEM -->
-  <section class="slide s-system" data-title="System" data-time="20">
-    <p class="eyebrow">System</p>
-    <h2>It plugs into PX4 like a VIO camera</h2>
-    <svg class="sys" viewBox="30 76 1150 490" role="img" aria-label="System diagram: breadcrumbs saved outbound; on the return each frame is rectified, matched to a breadcrumb, and fused by PX4 EKF2 as external vision">
-      <defs>
-        <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#626b76"/></marker>
-        <marker id="arb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#315c91"/></marker>
-      </defs>
-      <text x="48" y="100" class="h">OUTBOUND · GPS WORKS</text>
-      <rect x="48" y="114" width="190" height="64" rx="6" class="plain"/>
-      <text x="143" y="152" text-anchor="middle" class="t">Camera</text>
-      <rect x="298" y="114" width="250" height="64" rx="6" class="ours"/>
-      <text x="423" y="141" text-anchor="middle" class="t">Save breadcrumb</text>
-      <text x="423" y="162" text-anchor="middle" class="s">2 KB descriptor + EKF2 position</text>
-      <path d="M238,146 H294" class="ln" marker-end="url(#ar)"/>
-
-      <text x="48" y="262" class="h">RETURN · GPS JAMMED OR SPOOFED</text>
-      <rect x="48" y="300" width="190" height="80" rx="6" class="plain"/>
-      <text x="143" y="336" text-anchor="middle" class="t">Camera</text>
-      <text x="143" y="357" text-anchor="middle" class="s">1–3 frames/s</text>
-      <rect x="298" y="300" width="190" height="80" rx="6" class="ours"/>
-      <text x="393" y="336" text-anchor="middle" class="t">Rectify</text>
-      <text x="393" y="357" text-anchor="middle" class="s">level · north-up · scale</text>
-      <rect x="548" y="300" width="230" height="80" rx="6" class="ours"/>
-      <text x="663" y="336" text-anchor="middle" class="t">Match vs breadcrumb</text>
-      <text x="663" y="357" text-anchor="middle" class="s">offset (m) + uncertainty</text>
-      <rect x="838" y="300" width="300" height="80" rx="6" class="px4"/>
-      <text x="988" y="336" text-anchor="middle" class="t">PX4 EKF2</text>
-      <text x="988" y="357" text-anchor="middle" class="s">IMU + baro + compass + vision fix</text>
-      <path d="M238,340 H294" class="ln" marker-end="url(#ar)"/>
-      <path d="M488,340 H544" class="ln" marker-end="url(#ar)"/>
-      <path d="M778,340 H834" class="ln" marker-end="url(#ar)"/>
-      <text x="806" y="326" text-anchor="middle" class="lab">fix</text>
-
-      <path d="M548,146 H663 V296" class="dot" marker-end="url(#ar)"/>
-      <text x="675" y="230" class="lab">stored breadcrumbs</text>
-
-      <path d="M988,380 V430 H393 V384" class="fb" marker-end="url(#arb)"/>
-      <path d="M663,430 V384" class="fb" marker-end="url(#arb)"/>
-      <text x="405" y="452" class="labb">attitude + altitude</text>
-      <text x="675" y="452" class="labb">position → which breadcrumb</text>
-
-      <rect x="838" y="490" width="300" height="64" rx="6" class="plain"/>
-      <text x="988" y="518" text-anchor="middle" class="t">Controller</text>
-      <text x="988" y="539" text-anchor="middle" class="s">breadcrumb to breadcrumb, home</text>
-      <path d="M1138,340 H1160 V522 H1142" class="ln" marker-end="url(#ar)"/>
-
-      <text x="48" y="510" class="t" style="font-size:16px">GPS</text>
-      <text x="48" y="532" class="s">Ignored when it disagrees with vision + IMU by &gt;12 m</text>
-      <text x="48" y="552" class="s">(this is also the spoof detector).</text>
-    </svg>
-    <div class="notes">
-      <p><b>~20 s.</b> Top row: outbound, camera to breadcrumb store. Bottom row: the return loop. The EKF feeds attitude and altitude back to rectify, and its position picks which breadcrumb to match. The fix goes in as standard external vision, so nothing inside PX4 changes.</p>
-    </div>
-  </section>
-
-  <!-- ============================================================ 6. MODEL + DATA -->
-  <section class="slide s-model" data-title="Model and data" data-time="35">
-    <p class="eyebrow">Model and data</p>
-    <h2>A 1 MB matcher, trained on 1.82 M frames</h2>
-    <div class="flow">
-      <div><b>Frozen trunk</b><span>ImageNet MobileNetV3-Small</span></div>
-      <div><b>Descriptor grid</b><span>14 × 14 × 16, the 2 KB breadcrumb</span></div>
-      <div><b>Correlation</b><span>live vs stored, over 225 shifts</span></div>
-      <div><b>Heads</b><span>soft-argmax offset + learned covariance; arrival; no-match</span></div>
-    </div>
-    <div class="metrics">
-      <div class="metric"><div class="value"><strong>~1 MB</strong></div><p>int8 student</p><small>2 KB per breadcrumb · ≈ 21 MB per 3 h</small></div>
-      <div class="metric"><div class="value"><strong>35 M</strong></div><p>multiply-adds per frame</p><small>~10 ms on a Pi-class CPU · ~1 Hz on an FC MCU (est.)</small></div>
-      <div class="metric"><div class="value"><strong>1.82 M</strong></div><p>training frames</p><small>up to 6,000 frames/s on 4 GPUs</small></div>
-      <div class="metric"><div class="value"><strong>13</strong></div><p>real-world areas</p><small>Magdeburg 10 × 10 km + 12 US</small></div>
-    </div>
-    <p class="footnote">Simulator: real-world 3D from Google Photorealistic 3D Tiles (Magdeburg) and US lidar + NAIP aerial imagery (12 areas), with physically flown quad trajectories at 80–250 m AGL.</p>
-    <div class="notes">
-      <p><b>~35 s.</b> A frozen ImageNet backbone turns the rectified frame into a 14 by 14 grid of 16-number descriptors: that grid is the breadcrumb, 2 KB. We correlate the live grid against the stored one over 225 shifts and read out an offset in metres, plus a covariance the EKF uses to weight it, plus "arrived" and "no match". About 35 million multiply-adds: ~10 ms on a Pi-class CPU, roughly 1 Hz on a flight-controller MCU (an estimate, not measured), or on a smart-camera module.</p>
-      <p>We trained it in our own simulator on real-world 3D: Google's photorealistic tiles for 10 by 10 km near Magdeburg and US lidar plus aerial imagery for 12 more areas, with physically flown trajectories at 80 to 250 m. 1.82 million frames, rendered at up to 6,000 a second on four GPUs.</p>
-    </div>
-  </section>
-
-  <!-- ============================================================ 7. LIVE: OURS -->
-  <!-- Live-model hook: add data-demo-src="live/?embed=1" to switch this slide to the live/ page (wgpeng/live-model). -->
-  <section class="slide s-demo" data-demo="ours" data-demo-src="live/?embed=1" data-title="Live: our system" data-time="40">
-    <div>
-      <p class="eyebrow">Live replay</p>
-      <h2>Loading the 3D replay…</h2>
-    </div>
-    <div class="notes">
-      <p><b>~40 s.</b> Same terrain, our system, closed loop: the drone actually flies on our estimate. This is the v3 model, which never saw this country in training (mission 12 of 32). Green is our estimate, white the truth: they stay together. Dots on the ground are the breadcrumbs. Press T at the end: home within ~2 m. Press 1 to flip back to stock PX4 for contrast.</p>
-    </div>
-  </section>
-
-  <!-- ============================================================ 8. WHAT THE DRONE SEES -->
-  <section class="slide s-video" data-title="What the drone sees" data-time="20">
-    <h2>What the drone sees on the way back</h2>
-    <figure>
-      <video data-src="media/rth_mission012.mp4" poster="media/rth_mission012_poster.jpg" muted loop playsinline preload="none"></video>
-      <figcaption>Mission 12 (model v1), sped up. Top: live frame after rectification next to the breadcrumb it is matched against. Left: true return (white) and estimate (green) over the map.</figcaption>
-    </figure>
-    <div class="notes">
-      <p><b>~20 s.</b> Top middle is what the camera sees after rectification; top right is the breadcrumb it's looking for. The model says "you are 4 m south-east of it, ± 4 m", and the EKF moves on to the next breadcrumb. Fix yield is 99.7%.</p>
-    </div>
-  </section>
-
-  <!-- ============================================================ 9. RESULTS -->
-  <section class="slide s-results" data-steps="1" data-title="Results" data-time="30">
-    <p class="eyebrow">Results · closed-loop return to home</p>
-    <h2>32 of 32 missions home within 10 m</h2>
-    <div class="metrics tight" style="padding:28px 0">
-      <div class="metric"><div class="value"><strong>32</strong><span>vs</span>0</div><p>home within 10 m</p><small>ours vs stock PX4</small></div>
-      <div class="metric"><div class="value"><strong>3.3 m</strong><span>vs</span>847 m</div><p>median distance from home</p><small>p90 7.5 m vs 4.2 km</small></div>
-      <div class="metric"><div class="value"><strong>3.1 m</strong></div><p>position error, return</p><small>PX4 EKF2 replay: 3.8 m</small></div>
-      <div class="metric"><div class="value"><strong>0.02%</strong></div><p>confident-wrong fixes</p><small>85% inside 2σ (ideal 86%)</small></div>
-    </div>
-    <figure class="step" data-step="1" style="margin-top:28px">
-<!-- results-chart:start -->
-<svg class="chart" viewBox="0 0 1600 300" role="img" aria-label="Final distance from home per mission, log scale: ours all under 10 m, stock PX4 106 m to 8 km">
-<line x1="335.7" x2="335.7" y1="40" y2="250" class="grid"/>
-<text x="335.7" y="288" class="tick" text-anchor="middle">1 m</text>
-<line x1="620.3" x2="620.3" y1="40" y2="250" class="grid"/>
-<text x="620.3" y="288" class="tick" text-anchor="middle">10 m</text>
-<line x1="905.0" x2="905.0" y1="40" y2="250" class="grid"/>
-<text x="905.0" y="288" class="tick" text-anchor="middle">100 m</text>
-<line x1="1189.7" x2="1189.7" y1="40" y2="250" class="grid"/>
-<text x="1189.7" y="288" class="tick" text-anchor="middle">1 km</text>
-<line x1="1474.3" x2="1474.3" y1="40" y2="250" class="grid"/>
-<text x="1474.3" y="288" class="tick" text-anchor="middle">10 km</text>
-<line x1="620.3" x2="620.3" y1="32" y2="250" class="thr"/>
-<text x="632.3" y="28" class="thr-l">home: within 10 m</text>
-<text x="0" y="103" class="row">Our system</text>
-<circle cx="264.3" cy="82" r="9" fill="#315c91" class="dot"><title>mission_009: 0.6 m</title></circle>
-<circle cx="293.7" cy="95" r="9" fill="#315c91" class="dot"><title>mission_021: 0.7 m</title></circle>
-<circle cx="294.4" cy="108" r="9" fill="#315c91" class="dot"><title>mission_010: 0.7 m</title></circle>
-<circle cx="315.9" cy="82" r="9" fill="#315c91" class="dot"><title>mission_003: 0.9 m</title></circle>
-<circle cx="324.2" cy="95" r="9" fill="#315c91" class="dot"><title>mission_011: 0.9 m</title></circle>
-<circle cx="326.6" cy="108" r="9" fill="#315c91" class="dot"><title>mission_006: 0.9 m</title></circle>
-<circle cx="345.2" cy="82" r="9" fill="#315c91" class="dot"><title>mission_012: 1.1 m</title></circle>
-<circle cx="371.5" cy="95" r="9" fill="#315c91" class="dot"><title>mission_014: 1.3 m</title></circle>
-<circle cx="377.7" cy="108" r="9" fill="#315c91" class="dot"><title>mission_007: 1.4 m</title></circle>
-<circle cx="407.4" cy="82" r="9" fill="#315c91" class="dot"><title>mission_002: 1.8 m</title></circle>
-<circle cx="412.8" cy="95" r="9" fill="#315c91" class="dot"><title>mission_026: 1.9 m</title></circle>
-<circle cx="419.5" cy="108" r="9" fill="#315c91" class="dot"><title>mission_023: 2.0 m</title></circle>
-<circle cx="464.5" cy="82" r="9" fill="#315c91" class="dot"><title>mission_017: 2.8 m</title></circle>
-<circle cx="466.8" cy="95" r="9" fill="#315c91" class="dot"><title>mission_005: 2.9 m</title></circle>
-<circle cx="473.8" cy="108" r="9" fill="#315c91" class="dot"><title>mission_031: 3.1 m</title></circle>
-<circle cx="480.4" cy="82" r="9" fill="#315c91" class="dot"><title>mission_020: 3.2 m</title></circle>
-<circle cx="484.0" cy="95" r="9" fill="#315c91" class="dot"><title>mission_013: 3.3 m</title></circle>
-<circle cx="491.5" cy="108" r="9" fill="#315c91" class="dot"><title>mission_008: 3.5 m</title></circle>
-<circle cx="491.7" cy="82" r="9" fill="#315c91" class="dot"><title>mission_004: 3.5 m</title></circle>
-<circle cx="495.6" cy="95" r="9" fill="#315c91" class="dot"><title>mission_030: 3.6 m</title></circle>
-<circle cx="498.1" cy="108" r="9" fill="#315c91" class="dot"><title>mission_027: 3.7 m</title></circle>
-<circle cx="499.8" cy="82" r="9" fill="#315c91" class="dot"><title>mission_001: 3.8 m</title></circle>
-<circle cx="505.9" cy="95" r="9" fill="#315c91" class="dot"><title>mission_018: 4.0 m</title></circle>
-<circle cx="513.5" cy="108" r="9" fill="#315c91" class="dot"><title>mission_032: 4.2 m</title></circle>
-<circle cx="519.6" cy="82" r="9" fill="#315c91" class="dot"><title>mission_024: 4.4 m</title></circle>
-<circle cx="538.6" cy="95" r="9" fill="#315c91" class="dot"><title>mission_015: 5.2 m</title></circle>
-<circle cx="539.6" cy="108" r="9" fill="#315c91" class="dot"><title>mission_022: 5.2 m</title></circle>
-<circle cx="566.0" cy="82" r="9" fill="#315c91" class="dot"><title>mission_028: 6.4 m</title></circle>
-<circle cx="587.5" cy="95" r="9" fill="#315c91" class="dot"><title>mission_019: 7.7 m</title></circle>
-<circle cx="598.8" cy="108" r="9" fill="#315c91" class="dot"><title>mission_025: 8.4 m</title></circle>
-<circle cx="604.3" cy="82" r="9" fill="#315c91" class="dot"><title>mission_029: 8.8 m</title></circle>
-<circle cx="607.3" cy="95" r="9" fill="#315c91" class="dot"><title>mission_016: 9.0 m</title></circle>
-<line x1="482.2" x2="482.2" y1="61" y2="129" class="med"/>
-<text x="482.2" y="155" class="med-l" text-anchor="middle">median 3.3 m</text>
-<text x="0" y="208" class="row">Stock PX4</text>
-<circle cx="912.5" cy="187" r="9" fill="#8a929b" class="dot"><title>mission_015: 106.2 m</title></circle>
-<circle cx="938.2" cy="200" r="9" fill="#8a929b" class="dot"><title>mission_011: 130.8 m</title></circle>
-<circle cx="947.8" cy="213" r="9" fill="#8a929b" class="dot"><title>mission_010: 141.4 m</title></circle>
-<circle cx="973.7" cy="187" r="9" fill="#8a929b" class="dot"><title>mission_024: 174.3 m</title></circle>
-<circle cx="992.8" cy="200" r="9" fill="#8a929b" class="dot"><title>mission_014: 203.4 m</title></circle>
-<circle cx="995.4" cy="213" r="9" fill="#8a929b" class="dot"><title>mission_006: 207.8 m</title></circle>
-<circle cx="1007.3" cy="187" r="9" fill="#8a929b" class="dot"><title>mission_012: 228.8 m</title></circle>
-<circle cx="1026.3" cy="200" r="9" fill="#8a929b" class="dot"><title>mission_032: 266.7 m</title></circle>
-<circle cx="1030.8" cy="213" r="9" fill="#8a929b" class="dot"><title>mission_007: 276.6 m</title></circle>
-<circle cx="1041.4" cy="187" r="9" fill="#8a929b" class="dot"><title>mission_029: 301.5 m</title></circle>
-<circle cx="1049.4" cy="200" r="9" fill="#8a929b" class="dot"><title>mission_020: 321.6 m</title></circle>
-<circle cx="1094.2" cy="213" r="9" fill="#8a929b" class="dot"><title>mission_022: 462.0 m</title></circle>
-<circle cx="1123.9" cy="187" r="9" fill="#8a929b" class="dot"><title>mission_030: 587.6 m</title></circle>
-<circle cx="1136.5" cy="200" r="9" fill="#8a929b" class="dot"><title>mission_005: 650.6 m</title></circle>
-<circle cx="1141.0" cy="213" r="9" fill="#8a929b" class="dot"><title>mission_023: 674.7 m</title></circle>
-<circle cx="1165.2" cy="187" r="9" fill="#8a929b" class="dot"><title>mission_001: 820.5 m</title></circle>
-<circle cx="1173.0" cy="200" r="9" fill="#8a929b" class="dot"><title>mission_003: 873.9 m</title></circle>
-<circle cx="1177.7" cy="213" r="9" fill="#8a929b" class="dot"><title>mission_018: 907.5 m</title></circle>
-<circle cx="1191.8" cy="187" r="9" fill="#8a929b" class="dot"><title>mission_008: 1,017.9 m</title></circle>
-<circle cx="1230.1" cy="200" r="9" fill="#8a929b" class="dot"><title>mission_004: 1,387.0 m</title></circle>
-<circle cx="1231.4" cy="213" r="9" fill="#8a929b" class="dot"><title>mission_028: 1,401.5 m</title></circle>
-<circle cx="1233.4" cy="187" r="9" fill="#8a929b" class="dot"><title>mission_016: 1,424.9 m</title></circle>
-<circle cx="1244.6" cy="200" r="9" fill="#8a929b" class="dot"><title>mission_031: 1,559.2 m</title></circle>
-<circle cx="1252.0" cy="213" r="9" fill="#8a929b" class="dot"><title>mission_002: 1,656.3 m</title></circle>
-<circle cx="1267.5" cy="187" r="9" fill="#8a929b" class="dot"><title>mission_013: 1,876.7 m</title></circle>
-<circle cx="1280.9" cy="200" r="9" fill="#8a929b" class="dot"><title>mission_017: 2,091.6 m</title></circle>
-<circle cx="1282.2" cy="213" r="9" fill="#8a929b" class="dot"><title>mission_019: 2,113.7 m</title></circle>
-<circle cx="1317.3" cy="187" r="9" fill="#8a929b" class="dot"><title>mission_025: 2,807.1 m</title></circle>
-<circle cx="1370.2" cy="200" r="9" fill="#8a929b" class="dot"><title>mission_009: 4,308.9 m</title></circle>
-<circle cx="1373.8" cy="213" r="9" fill="#8a929b" class="dot"><title>mission_026: 4,436.4 m</title></circle>
-<circle cx="1425.8" cy="187" r="9" fill="#8a929b" class="dot"><title>mission_027: 6,756.9 m</title></circle>
-<circle cx="1446.2" cy="200" r="9" fill="#8a929b" class="dot"><title>mission_021: 7,968.0 m</title></circle>
-<line x1="1169.2" x2="1169.2" y1="166" y2="234" class="med"/>
-<text x="1169.2" y="156" class="med-l" text-anchor="middle">median 847 m</text>
-</svg>
-<!-- results-chart:end -->
-      <figcaption>Distance from home at the end of each return. One dot per mission, log scale; bar = median.</figcaption>
-    </figure>
-    <p class="footnote">32 missions over Magdeburg: 1–4 km out, 100–200 m AGL, wind up to 6 m/s with gusts. GPS jammed at the turnaround. Model v2. Stock = PX4 EKF2 replay of the same flights. Magdeburg terrain was in training (different flights); see held-out test.</p>
-    <div class="notes">
-      <p><b>~25 s · 1 click.</b> Every one of 32 missions gets home within 10 m; median 3.3 m. Stock PX4 gets none of them home. During the return our position error is about 3 m. The model's uncertainty is honest: only 0.02% of fixes were confidently wrong, and 85% of errors fall inside its 2-sigma ellipse where 86% should. (click) Each dot is one mission: ours all sit left of the 10 m line, stock spreads from 100 m to 8 km. And it isn't an artifact of our own EKF: feeding the same fixes through real PX4 EKF2 gives 3.8 m vs 3.5 m in our twin.</p>
-    </div>
-  </section>
-
-  <!-- ============================================================ 10. HELD-OUT -->
-  <section class="slide s-heldout" data-title="Unseen country" data-time="25">
-    <p class="eyebrow">Generalisation · Magdeburg held out of training</p>
-    <h2>It works in a country it never saw</h2>
-    <p class="lead" style="font-size:34px; margin-bottom:36px">Trained on US terrain only. One threshold is retuned on ~50 local flights.</p>
-    <div class="row" style="grid-template-columns: 1fr 470px; gap: 90px;">
-      <table class="compact">
-        <thead><tr><th></th><th>v3 · never saw it</th><th>v2 · trained on it</th></tr></thead>
-        <tbody>
-          <tr><td>Home within 10 m <span class="sub">closed loop</span></td><td class="hl">32 / 32</td><td>32 / 32</td></tr>
-          <tr><td>Distance from home, median / p90</td><td class="hl">3.4 / 7.2 m</td><td>3.3 / 7.5 m</td></tr>
-          <tr><td>Offset error, median <span class="sub">offline</span></td><td class="hl">5.3 m</td><td>5.0 m</td></tr>
-          <tr><td>Errors inside 1σ <span class="sub">ideal 39%</span></td><td class="hl">38%</td><td>37%</td></tr>
-          <tr><td>False fixes <span class="sub">5.3% with the US threshold</span></td><td class="hl">1.0%</td><td>0.9%</td></tr>
-          <tr><td>Complex routes, home <span class="sub">median / p90</span></td><td class="hl">32 / 32 · 3.2 / 4.6 m</td><td>32 / 32 · 2.5 / 3.6 m</td></tr>
-        </tbody>
-      </table>
-      <figure>
-<!-- routes-figure:start -->
-<svg class="routes" viewBox="0 0 430 478" role="img" aria-label="Four example complex routes: zig-zag, survey, orbit, self-crossing">
-<rect x="0" y="0" width="200" height="200" class="cell"/>
-<polyline class="route" points="78.0,171.5 18.0,153.6 60.1,99.3 136.4,113.7 124.4,78.7 154.9,104.4 182.0,28.5"/>
-<rect x="71.0" y="164.5" width="14" height="14" class="home"/>
-<path d="M155.0,73.7L171.0,89.7M171.0,73.7L155.0,89.7" class="jam"/>
-<text x="0" y="226" class="name">Zig-zag</text>
-<rect x="230" y="0" width="200" height="200" class="cell"/>
-<polyline class="route" points="277.9,174.5 248.0,60.8 292.7,49.1 322.6,162.7 367.3,150.9 337.4,37.3 382.1,25.5 412.0,139.2"/>
-<rect x="270.9" y="167.5" width="14" height="14" class="home"/>
-<path d="M404.0,131.2L420.0,147.2M420.0,131.2L404.0,147.2" class="jam"/>
-<text x="230" y="226" class="name">Survey</text>
-<rect x="0" y="244" width="200" height="200" class="cell"/>
-<polyline class="route" points="72.3,426.0 119.5,339.6 120.7,336.6 121.2,333.4 120.8,330.1 119.7,327.1 118.0,324.4 115.6,322.2 112.7,320.7 109.6,319.8 106.4,319.8 103.2,320.5 100.3,322.0 97.9,324.1 96.0,326.7 94.8,329.7 94.3,332.9 94.7,336.1 95.8,339.2 97.6,341.9 99.9,344.1 102.8,345.6 105.9,346.4 109.1,346.5 112.3,345.8 115.2,344.3 117.7,342.2 119.5,339.6 139.8,302.4 141.2,299.5 142.3,296.4 142.9,293.1 143.2,289.9 143.0,286.6 142.5,283.4 141.6,280.2 140.3,277.2 138.7,274.3 136.8,271.7 134.5,269.3 132.0,267.3 129.2,265.5 126.3,264.1 123.2,263.0 120.0,262.3 116.7,262.0 113.4,262.1 110.2,262.6 107.0,263.5 104.0,264.7 101.1,266.3 98.5,268.2 96.1,270.5 56.8,311.6"/>
-<rect x="65.3" y="419.0" width="14" height="14" class="home"/>
-<path d="M48.8,303.6L64.8,319.6M64.8,303.6L48.8,319.6" class="jam"/>
-<text x="0" y="470" class="name">Orbit</text>
-<rect x="230" y="244" width="200" height="200" class="cell"/>
-<polyline class="route" points="349.4,424.5 248.0,284.3 412.0,284.0 326.7,399.7 345.1,263.5"/>
-<rect x="342.4" y="417.5" width="14" height="14" class="home"/>
-<path d="M337.1,255.5L353.1,271.5M353.1,255.5L337.1,271.5" class="jam"/>
-<text x="230" y="470" class="name">Self-crossing</text>
-</svg>
-<!-- routes-figure:end -->
-        <figcaption><span class="figure-label">Complex routes,</span> 2.3–5.9 km; ✕ jam, ■ home. Stock PX4: 0 / 32, median 487 m.</figcaption>
-      </figure>
-    </div>
-    <div class="notes">
-      <p><b>~20 s.</b> The obvious question: does it only work because it trained on this terrain? v3 never saw Magdeburg, or Germany at all: it trained on US terrain only. Closed loop it still gets 32 of 32 home, median 3.4 m, p90 7.2 m, essentially the same as the model that trained here. The one thing we retune is the no-match threshold, on about 50 local flights: with the US threshold, 5.3% of fixes are false; retuned, 1.0%. On complex routes, zig-zags, surveys, orbits, self-crossing, 2.3 to 5.9 km with altitude changes, v3 still gets 32 of 32 home, median 3.2 m; stock PX4 none, median 487 m. Same 32 missions as the results slide; stock PX4 got 0 of 32 home. A false fix is a wrong fix that gets past the no-match gate.</p>
-    </div>
-  </section>
-
-  <!-- ============================================================ 11. LIMITATIONS -->
-  <section class="slide s-limits" data-title="Limitations" data-time="15">
-    <p class="eyebrow">Limitations</p>
-    <h2>What we haven't solved</h2>
-    <ul class="list">
-      <li><b>Hilly terrain</b><span>Rectification assumes flat ground, so accuracy drops on slopes.</span></li>
-      <li><b>Sim-to-real appearance</b><span>Untested. Real cameras, seasons and light differ from rendered tiles.</span></li>
-      <li><b>No-match threshold</b><span>Needs calibrating per region.</span></li>
-    </ul>
-    <div class="notes">
-      <p><b>~15 s.</b> Three honest caveats. Hills break our flat-ground rectification. Everything is simulated, so real-camera appearance change is untested. And the no-match threshold has to be calibrated per region.</p>
-    </div>
-  </section>
-
-  <!-- ============================================================ 12. CLOSE -->
-  <section class="slide s-close" data-title="Close" data-time="5">
-    <div style="display:flex; flex-direction:column; justify-content:center; height:100%">
-      <p class="eyebrow">Homeward</p>
-      <h2 style="font-size:84px">GPS jammed. Home within 10 m.</h2>
-      <p class="lead">32 of 32 missions, on a 1 MB model, through stock PX4.</p>
-      <p class="caption" style="font-size:28px; margin-top:48px">Live replay: <span class="figure-label">7peng.github.io/drone-presentation</span></p>
-    </div>
-    <div class="notes">
-      <p><b>~5 s.</b> Thanks. The live replay is at the URL.</p>
+      <p><b>~30 s.</b> Why not just run visual SLAM? On the same Magdeburg missions ORB-SLAM3 needs over a gigabyte of RAM, 9 to 47 MB of map per kilometre and more than a full desktop core, and it held position all the way home on only 3 of 7, never once recognising its outbound map. Ours: about 30 MB of memory, 0.3 MB per km of breadcrumbs, a few percent of one core, and 7 of 7 home within 5 m. And SLAM here was run in the most favourable setting, open loop on the true path.</p>
     </div>
   </section>
 
 </div>
 </div>
 
-<div id="demo-layer"><iframe data-src="cesium/?embed=1" title="Live 3D replay" allow="fullscreen"></iframe></div>
+<div id="demo-layer" data-src="cesium/?embed=1"></div>
 <div id="notes-overlay"></div>
 <div id="progress"></div>
 <div id="slide-num"></div>

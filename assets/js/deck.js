@@ -11,15 +11,30 @@ const progress = document.getElementById('progress');
 const slideNum = document.getElementById('slide-num');
 const notesOverlay = document.getElementById('notes-overlay');
 const demoLayer = document.getElementById('demo-layer');
-const demoFrame = demoLayer.querySelector('iframe');
+// One full-viewport iframe per demo page (data-demo-src, default the layer's data-src), created on first use and kept
+// alive, so switching between the Cesium replay and live/ never reloads either.
+const DEFAULT_DEMO = demoLayer.dataset.src || 'cesium/?embed=1';
+const frames = new Map();   // absolute src -> iframe
 const channel = 'BroadcastChannel' in window ? new BroadcastChannel('deck') : null;
 
 if (new URLSearchParams(location.search).has('draft')) document.body.classList.add('draft');
 
 let idx = 0;
-let demoScenario = null;
-const sendScenario = () => demoFrame.contentWindow?.postMessage({ type: 'demo-scenario', scenario: demoScenario }, '*');
-demoFrame.addEventListener('load', () => { if (demoScenario) setTimeout(sendScenario, 50); });
+const srcOf = (el) => new URL(el?.dataset.demoSrc || DEFAULT_DEMO, location.href).href;
+const post = (f) => f.dataset.scenario && f.contentWindow?.postMessage({ type: 'demo-scenario', scenario: f.dataset.scenario }, '*');
+function frameFor(el) {
+  const src = srcOf(el);
+  if (!frames.has(src)) {
+    const f = document.createElement('iframe');
+    f.title = 'Live demo';
+    f.allow = 'fullscreen';
+    f.src = src;
+    f.addEventListener('load', () => setTimeout(() => post(f), 50));
+    demoLayer.appendChild(f);
+    frames.set(src, f);
+  }
+  return frames.get(src);
+}
 let step = 0;
 let timerStart = null;
 
@@ -38,21 +53,16 @@ function render() {
     for (let k = 1; k <= 5; k++) el.classList.toggle(`is-step-${k}`, i === idx && k <= step);
   });
 
+  // Demo slides: data-demo="stock" | "ours" picks the scenario (posted to the page), data-demo-src the page.
   const isDemo = slides[idx].hasAttribute('data-demo');
-  // One iframe serves every demo slide. data-demo="stock" | "ours" picks the scenario; data-demo-src (optional,
-  // default: the iframe's data-src, i.e. cesium/) lets a slide load another page, e.g. live/?embed=1.
-  const srcOf = (el) => new URL(el?.dataset.demoSrc || demoFrame.dataset.src, location.href).href;
-  const preload = isDemo ? slides[idx] : slides[idx + 1]?.hasAttribute('data-demo') ? slides[idx + 1] : null;
-  // Preload the demo one slide early so WebGL is warm when we arrive.
-  if (preload && (isDemo || !demoFrame.src) && demoFrame.src !== srcOf(preload)) {
-    demoFrame.src = srcOf(preload);
-    demoScenario = null;              // new page: re-send the scenario once it has loaded
-  }
+  if (slides[idx + 1]?.hasAttribute('data-demo')) frameFor(slides[idx + 1]);   // preload: WebGL warm on arrival
+  const active = isDemo ? frameFor(slides[idx]) : null;
+  frames.forEach((f) => f.classList.toggle('is-shown', f === active));
   demoLayer.classList.toggle('is-active', isDemo);
-  if (isDemo) {
+  if (active) {
     const scenario = slides[idx].dataset.demo;
-    if (scenario && scenario !== demoScenario) { demoScenario = scenario; sendScenario(); }
-    setTimeout(() => demoFrame.contentWindow?.focus(), 50);
+    if (scenario && scenario !== active.dataset.scenario) { active.dataset.scenario = scenario; post(active); }
+    setTimeout(() => active.contentWindow?.focus(), 50);
   } else window.focus();
 
   // Slide videos: load lazily, play only while their slide is showing.

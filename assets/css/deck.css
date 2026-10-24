@@ -81,7 +81,8 @@ td .sub { color: var(--muted); font-size: 22px; margin-left: 8px; }
 /* Live demo: a real full-viewport iframe (not scaled) so WebGL renders at native resolution */
 #demo-layer { position: fixed; inset: 0; z-index: 10; display: none; background: #fff; }
 #demo-layer.is-active { display: block; }
-#demo-layer iframe { width: 100%; height: 100%; border: 0; display: block; }
+#demo-layer iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; visibility: hidden; }
+#demo-layer iframe.is-shown { visibility: visible; }
 
 /* ?draft outlines every placeholder that still needs real content */
 body.draft .tbd { outline: 3px dashed #e0a800; outline-offset: 6px; }
@@ -145,3 +146,14 @@ table.compact th:first-child, table.compact td:first-child { padding-left: 0; }
 .routes .sub { font: 400 18px var(--sans); fill: var(--muted); }
 .metrics.tight .metric .value { font-size: 64px; }
 .metrics.tight .metric p { margin-top: 12px; }
+
+/* Five-slide deck: model diagram and footprint comparison */
+.diagram2 { width: 100%; height: auto; display: block; }
+.diagram2 .t { font: 600 25px var(--heading); }
+.diagram2 .s { font: 400 17px var(--sans); }
+.diagram2 .labb { font: 500 18px var(--sans); fill: var(--blue); }
+.diagram2 .o { font: 400 20px var(--sans); fill: var(--ink); }
+.metrics.cmp .metric .k { font: 600 20px var(--sans); letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin: 0 0 14px; }
+.metrics.cmp .metric .value { font-size: 84px; }
+.metrics.cmp .metric .value span { font-size: 32px; }
+.metrics.cmp .metric p b { color: var(--ink); font-weight: 600; }

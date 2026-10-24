@@ -8,10 +8,13 @@
   const params = new URLSearchParams(location.search);
   const embedded = params.has('embed');
   if (embedded) document.body.classList.add('embed');
+  const solo = params.has('solo');                 // ?solo=1: one scenario, no toggle (deck slide 2)
+  if (solo) document.body.classList.add('solo');
   const TOKEN_KEY = 'homeward.cesiumIonToken';
   // ours = model v3 (Magdeburg held out of training). Fallback videos are pre-rendered (rth video: model v1).
   const SCN = {
-    stock: { file: 'data/stock.json', video: '../media/jamming_failure.mp4', poster: '../media/jamming_failure_poster.jpg' },
+    // stock = PX4 EKF2 replay of complex zig-zag cx_001 (2.7 km, jammed at 0.85 of the route)
+    stock: { file: 'data/stock_cx001.json', video: '../media/jamming_failure.mp4', poster: '../media/jamming_failure_poster.jpg' },
     ours: { file: 'data/ours.json', video: '../media/rth_mission012.mp4', poster: '../media/rth_mission012_poster.jpg' },
   };
   const SPEEDS = ['auto', 1, 5, 10, 20, 40];
@@ -226,10 +229,8 @@
   function rate() {
     const s = SPEEDS[speedIdx];
     if (s !== 'auto') return s;
-    // like the pre-rendered video: fast outbound, slow around the jam, brisk return, slow arrival
-    if (simT > D.ev.jam - 4 && simT < D.ev.jam + 14) return 3;
-    if (simT > D.ev.home - 12) return 4;
-    return simT < D.ev.jam ? 14 : 9;
+    // talk pacing: the outbound (GPS OK) plays at 2x the speed of everything after the jam
+    return simT < D.ev.jam ? 16 : 8;
   }
 
   // ---------------------------------------------------------------- camera
@@ -313,8 +314,8 @@
     if (!D) return;
     const k = e.key;
     if (k === ' ') togglePlay();
-    else if (k === '1') setScenario('stock');
-    else if (k === '2') setScenario('ours');
+    else if (k === '1' && !solo) setScenario('stock');
+    else if (k === '2' && !solo) setScenario('ours');
     else if (k === 'c' || k === 'C') setCam(cam === 'chase' ? 'orbit' : 'chase');
     else if (k === 't' || k === 'T') setCam(cam === 'top' ? 'chase' : 'top');
     else if (k === 's' || k === 'S') speedIdx = (speedIdx + 1) % SPEEDS.length;

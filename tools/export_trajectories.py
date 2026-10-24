@@ -174,11 +174,78 @@ def export_ours(fr, d, mid, title):
     }
 
 
+def export_stock_cx(fr, md, mid, tau=2.0, hold=6.0):
+    """Stock PX4 on a recorded closed-loop mission (eval_cl sweep): PX4 EKF2 inertial-only replay (px4_stock.csv) of
+    the same flight's sensors. Same closed-loop composition as export_stock: the vehicle steers its ESTIMATE along the
+    route home, so ghost(t) = route flown home(t) and real(t) = route(t) - LPF_tau(e(t)), e = EKF2 - truth.
+    EKF2 lat/lon -> local NE exactly as eval_cl/px4_replay.py (equirectangular about lat0/lon0, RE = 6378137)."""
+    RE = 6378137.0
+    L = np.load(f"{md}/log.npz")
+    S = json.load(open(f"{md}/summary.json"))
+    meta = json.load(open(f"{md}/px4_meta.json"))
+    pxs = json.load(open(f"{md}/px4_summary.json"))["stock"]
+    d = np.genfromtxt(f"{md}/px4_stock.csv", delimiter=",", names=True)
+    tr = L["traj"]
+    tr = tr[int(np.argmax(tr[:, 11] >= 1)):]                         # skip the alignment hover
+    t = tr[:, 0]
+    ok = d["lat"] != 0
+    tp = d["t"][ok] - meta["t0_s"]                                     # PX4 time -> sim time
+    en = np.radians(d["lat"][ok] - meta["lat0"]) * RE
+    ee = np.radians(d["lon"][ok] - meta["lon0"]) * RE * math.cos(math.radians(meta["lat0"]))
+    e = np.stack([np.interp(t, tp, en) - tr[:, 1], np.interp(t, tp, ee) - tr[:, 2]], 1)
+    e_lp = e.copy()
+    for k in range(1, len(e)):
+        al = (t[k] - t[k - 1]) / (tau + (t[k] - t[k - 1]))
+        e_lp[k] = e_lp[k - 1] + al * (e[k] - e_lp[k - 1])
+    route = tr[:, 1:4].copy()
+    real = route.copy()
+    real[:, :2] -= e_lp
+    tn = np.arange(t[0], t[-1] + 1e-6, 1.0 / RATE_HZ)
+    if tn[-1] < t[-1] - 1e-6:
+        tn = np.r_[tn, t[-1]]
+    truth, est = resample(t, real, tn), resample(t, route, tn)
+    # "thinks it's home" = the settled end of the flown return (where px4_summary's err_end is taken). During the hold
+    # the estimate stays home and the low-pass keeps converging to EKF2's final error, so the miss settles at err_end.
+    nh = int(hold * RATE_HZ)
+    lp, hold_real = e_lp[-1].copy(), []
+    for _ in range(nh):
+        lp = lp + (1.0 / RATE_HZ) / (tau + 1.0 / RATE_HZ) * (e[-1] - lp)
+        hold_real.append(np.r_[route[-1, :2] - lp, route[-1, 2]])
+    e_lp = np.r_[e_lp, [lp]]
+    tn = np.r_[tn, t[-1] + np.arange(1, nh + 1) / RATE_HZ]
+    truth, est = np.r_[truth, np.array(hold_real)], np.r_[est, np.repeat(est[-1:], nh, 0)]
+    gv = d["global_valid"]
+    after = d["t"] >= meta["jam_abs_s"]
+    inv = d["t"][after & (gv == 0)]
+    t_inv = float(inv[0] - meta["t0_s"]) if len(inv) else None
+    t_home = float(t[-1])
+    t0 = tn[0]
+    ev = [{"t": round(S["t_jam"] - t0, 2), "key": "jam", "label": "GPS jammed"},
+          {"t": round(S["t_jam"] - t0, 2), "key": "rth", "label": "Return home on the inertial estimate"},
+          {"t": round(t_home - t0, 2), "key": "home", "label": "Thinks it's home"}]
+    if t_inv is not None:
+        ev.insert(1, {"t": round(t_inv - t0, 2), "key": "invalid", "label": "EKF2 flags position invalid"})
+    jn = [float(np.interp(S["t_jam"], t, tr[:, i])) for i in (1, 2)]
+    return {
+        "id": mid, "title": "Stock PX4, GPS jammed", "kind": "stock",
+        "t": [round(float(x - t0), 2) for x in tn],
+        "truth": pack(fr.ned_to_llh(truth)), "est": pack(fr.ned_to_llh(est)),
+        "home": [round(float(x), 7) for x in fr.ground_llh(*L["home"])],
+        "jam": [round(float(x), 7) for x in fr.ground_llh(*jn)],
+        "events": ev,
+        "result": {"miss_m": round(float(np.hypot(*e_lp[-1])), 1), "px4_err_end_m": round(pxs["err_end"], 1),
+                   "global_valid_end": pxs["global_valid_end"]},
+        "source": f"drone-work/eval_cl/{os.path.relpath(md, WORK + '/eval_cl')}: log.npz + px4_stock.csv (PX4 EKF2 replay), "
+                  f"closed loop real = route - LPF_{tau:g}s(e)",
+        "agl_m": S["spec"]["agl"], "speed_mps": S["spec"]["cruise"],
+    }
+
+
 def main():
     fr = Frame()
     os.makedirs(OUT, exist_ok=True)
     jobs = [
-        ("stock.json", lambda: export_stock(fr)),
+        ("stock_cx001.json", lambda: export_stock_cx(fr, f"{WORK}/eval_cl/sweep_cx_v3/cx_001", "stock_px4_cx_001")),
         # v3: trained without Magdeburg (US areas only); no-match gate calibrated on local flights (deploy_mdcal)
         ("ours.json", lambda: export_ours(fr, f"{WORK}/eval_cl/sweep_v3/mission_012", "ours_v3_mission_012",
                                           "Our system (v3, Magdeburg never seen in training)")),

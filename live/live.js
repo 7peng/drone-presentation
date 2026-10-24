@@ -15,10 +15,13 @@
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const ORT_DIST = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/';
   const BLUE = '#315c91', GREEN = '#2e7d4f', GREEN_MAP = '#34c759', RED = '#b3261e', TRUTH = '#f29900';
-  const S = { mission: null, running: false, speed: parseFloat(params.get('speed') || '1'), log: [], vision: params.get('autoplay') !== 'stock',
+  const S = { mission: null, running: false, speed: params.get('speed') === 'auto' || (params.has('embed') && !params.has('speed')) ? 'auto' : parseFloat(params.get('speed') || '1'), log: [], vision: params.get('autoplay') !== 'stock',
     present: params.get('present') === '1' || params.has('embed'), debug: params.get('present') !== '1' && !params.has('embed'), showTruth: false, wind: params.has('wind') ? parseFloat(params.get('wind')) : null,
     realism: params.get('ideal') !== '1', mainMode: 'chase' };
-  const SPEEDS = [1, 2, 4, 8, Infinity];
+  const SPEEDS = ['auto', 1, 2, 4, 8, Infinity];
+  // 'auto' (talk default): brisk outbound, slow around the jam, brisk return, slow arrival (captures stay in lockstep)
+  const autoRate = (m) => (m.phase === 'hover' ? 4 : m.phase === 'out' ? 8 : m.tJam !== null && m.t - m.tJam < 8 ? 2 : m.phase === 'home' || (m.k !== null && m.k <= m.H + 2) ? 2 : 4);
+  const spdLabel = (s) => (s === 'auto' ? 'Auto' : isFinite(s) ? `${s}×` : 'max');
   document.body.classList.toggle('present', S.present);
 
   function readToken() {   // same sources as ../cesium/demo.js; never logged
@@ -177,8 +180,9 @@
     let jamIdx = -1, outCache = null;
     const jamAt = () => { if (m.tJam === null) return -1; if (jamIdx < 0) jamIdx = m.traj.length - 1; return jamIdx; };
     // outbound true path: thin dotted grey once the return starts (white while flying out); return true path: white
-    add({ polyline: { positions: cb(() => { const j = jamAt(); if (j < 0) return path(1)(); if (!outCache) outCache = path(1)().slice(0, -1).slice(0, Math.max(2, Math.ceil(j / Math.max(1, Math.floor(m.traj.length / 1500))))); return outCache; }),
-      width: cb(() => (m.tJam === null ? 3 : 2)), material: new Cesium.PolylineDashMaterialProperty({ color: cb(() => (m.tJam === null ? C.WHITE : C.fromCssColorString('#c5c8cc').withAlpha(0.8))), dashLength: cb(() => (m.tJam === null ? 1e6 : 10)) }) } });
+    add({ polyline: { positions: cb(path(1)), width: 3, material: C.WHITE, depthFailMaterial: C.WHITE.withAlpha(0.4), show: cb(() => m.tJam === null) } });
+    add({ polyline: { positions: cb(() => { const j = jamAt(); if (j < 0) return []; if (!outCache) { const T = m.traj, pts = []; for (let i = 0; i <= j; i += Math.max(1, Math.floor(j / 1500))) pts.push(nedToCart(T[i][1], T[i][2], T[i][8])); outCache = pts.length > 1 ? pts : []; } return outCache; }),
+      width: 2, material: new Cesium.PolylineDashMaterialProperty({ color: C.fromCssColorString('#c5c8cc').withAlpha(0.85), dashLength: 12 }), show: cb(() => m.tJam !== null) } });
     add({ polyline: { positions: cb(() => { const j = jamAt(); return j < 0 ? [] : path(1, j)(); }), width: 3, material: C.WHITE, depthFailMaterial: C.WHITE.withAlpha(0.4) } });
     add({ polyline: { positions: cb(() => { const j = jamAt(); return j < 0 ? [] : path(3, j)(); }), width: 3, material: est, depthFailMaterial: est.withAlpha(0.4) } });
     add({ position: groundCart(m.home[0], m.home[1], 1.5), point: { pixelSize: 14, color: C.WHITE, outlineColor: C.fromCssColorString('#202630'), outlineWidth: 3, disableDepthTestDistance: Infinity },
@@ -414,7 +418,7 @@
         hud(m);
       } else {
         if (showCam && m.t >= nextShow) { nextShow = m.t + 0.5; const q = m.camReq('cam', {}, 2 * Math.atan(Nav.bucketFor(m.aglTrue()) / 2 / m.aglTrue()) * 180 / Math.PI); const cap = await S.cam.capture(q, 300); drawRect(cap); wall0 = performance.now(); sim0 = m.t; }
-        const sp = speed();
+        const sp = speed() === 'auto' ? autoRate(m) : speed();
         if (isFinite(sp)) {
           const ahead = (m.t - sim0) / sp * 1000 - (performance.now() - wall0);
           if (ahead > 0) await sleep(ahead);
@@ -462,8 +466,8 @@
     const go = (vision) => { if (S.running) S.abort = S.mission; setTimeout(() => fly(sel.value, vision), S.running ? 300 : 0); };
     $('b-fly').onclick = () => go(S.vision);
     document.querySelectorAll('[data-scn]').forEach((b) => (b.onclick = () => { S.vision = b.dataset.scn === 'ours'; segOn(); go(S.vision); }));
-    $('b-speed').onclick = () => { const i = (SPEEDS.indexOf(S.speed) + 1) % SPEEDS.length; S.speed = SPEEDS[i]; $('b-speed').textContent = isFinite(S.speed) ? `${S.speed}×` : 'max'; };
-    $('b-speed').textContent = isFinite(S.speed) ? `${S.speed}×` : 'max';
+    $('b-speed').onclick = () => { const i = (SPEEDS.indexOf(S.speed) + 1) % SPEEDS.length; S.speed = SPEEDS[i]; $('b-speed').textContent = spdLabel(S.speed); };
+    $('b-speed').textContent = spdLabel(S.speed);
     const ws = $('wind'), wl = $('wind-val');
     ws.oninput = () => { S.wind = parseFloat(ws.value); wl.textContent = `${S.wind} m/s (next flight)`; };
     if (S.wind !== null) { ws.value = S.wind; wl.textContent = `${S.wind} m/s`; }

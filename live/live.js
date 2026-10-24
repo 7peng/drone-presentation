@@ -281,6 +281,11 @@
   function updateCam() {
     const m = S.mission;
     if (!viewer || !m) return;
+    if (S.warmCam) {   // corridor warm-up: same framing as the chase view, at the warm-up point
+      const w = S.warmCam, agl = Math.max(-w.d - ground.at(w.n, w.e), 30);
+      viewer.camera.lookAt(nedToCart(w.n, w.e, w.d + 0.6 * agl), new Cesium.HeadingPitchRange(Cesium.Math.toRadians(28), Cesium.Math.toRadians(-48), 240 + 1.3 * agl));
+      return;
+    }
     const tgt = nedToCart(m.p[0], m.p[1], m.D);
     if (S.mainMode === 'top') {
       const pts = m.route.concat([[m.p[0], m.p[1]], m.home]).map((q) => groundCart(q[0], q[1]));
@@ -421,10 +426,11 @@
         if (n % 2000 === 0) await sleep(0);
       }
       drawBc(m, null);
-      // warm the camera tiles along the first part of the return corridor (browser cache keeps them for the run)
+      // warm the tiles along the return corridor (Cesium's in-memory cache keeps them; Google tile URLs carry a session
+      // token, so the HTTP cache does not survive reloads). prepareOnly: sweep the whole corridor with both cameras, then stop.
       status('Loading terrain…');
-      const k0 = m.bcs.length - 1, Rlvl = Nav.m3([[1, 0, 0], [0, 1, 0], [0, 0, 1]], Nav.CAM);
-      for (let j = k0; j >= Math.max(0, k0 - 30); j -= 5) { const b = m.bcs[j]; await S.cam.raw(b.pt[0], b.pt[1], m.D, Rlvl, 90, 8000); }
+      await warmCorridor(m, opts.prepareOnly ? m.bcs.length : 31, opts.prepareOnly);
+      if (opts.prepareOnly) { S.running = false; S.warmCam = null; status('Ready · press Space to fly home'); return { prepared: true, bcs: m.bcs.length }; }
       wall0 = performance.now(); sim0 = m.t;
     } else if (vision) {
       status('Pre-flight: loading camera tiles…');
@@ -495,6 +501,23 @@
     return sum;
   }
 
+  // sweep jam -> home (flight order) along the breadcrumb chain: nadir camera (level, 90°) and, if withMain, the main view
+  async function warmCorridor(m, span, withMain) {
+    const k0 = m.bcs.length - 1, Rlvl = Nav.m3([[1, 0, 0], [0, 1, 0], [0, 0, 1]], Nav.CAM), step = withMain ? 6 : 5;
+    for (let j = k0, n = 0; j >= Math.max(0, k0 - span); j -= step, n++) {
+      if (S.abort === m) return;
+      const b = m.bcs[j];
+      await S.cam.raw(b.pt[0], b.pt[1], m.D, Rlvl, 90, withMain ? 6000 : 4000);
+      if (withMain && viewer) {
+        S.warmCam = { n: b.pt[0], e: b.pt[1], d: m.D };
+        const t0 = performance.now();
+        await sleep(150);
+        while (performance.now() - t0 < 5000 && !(S.mainTs && S.mainTs.tilesLoaded)) await sleep(100);
+        status(`Loading terrain… ${Math.round(100 * (k0 - j) / Math.max(1, Math.min(span, k0)))}%`);
+      }
+    }
+    S.warmCam = null;
+  }
   // pre-flown outbound: int8 descriptors (unit-norm cells, x127), uint8 masks (x255), JPEG breadcrumb thumbnails
   async function loadPre(id, seed) {
     const r = await fetch(`data/start_${id}_s${seed}.json`);
@@ -578,11 +601,16 @@
     status('Ready');
     window.__liveReady = true;
     if (params.get('autoplay')) go(params.get('autoplay') !== 'stock');
+    // deck embed: the iframe is loaded minutes before its slide -- pre-flight the return corridor now, then wait for Space
+    else if (params.has('embed') && params.get('start') === 'jam') {
+      S.preparing = fly(sel.value, true, { prepareOnly: true }).then((r) => { S.prepared = r; }).catch((e) => console.error('prepare failed:', e && e.message));
+    }
   }
 
   window.__live = {
     fly: (id, vision, opts) => fly(id, vision, opts),
     exportPre: () => exportPre(),
+    prepared: () => S.prepared || null,
     state: () => { const m = S.mission; return m ? { t: m.t, phase: m.phase, k: m.k, bcs: m.bcs.length, frames: m.frames.length, err: Math.hypot(m.p[0] - m.kf.x[0], m.p[1] - m.kf.x[1]), home: Math.hypot(m.p[0] - m.home[0], m.p[1] - m.home[1]), done: m.done, running: S.running } : null; },
     summary: () => S.lastSummary,
     frames: () => (S.mission ? S.mission.frames.map((f) => { const { probs, ...rest } = f; return rest; }) : []),

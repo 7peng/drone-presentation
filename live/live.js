@@ -19,8 +19,16 @@
     present: params.get('present') === '1' || params.has('embed'), debug: params.get('present') !== '1' && !params.has('embed'), showTruth: false, wind: params.has('wind') ? parseFloat(params.get('wind')) : null,
     realism: params.get('ideal') !== '1', mainMode: 'chase' };
   const SPEEDS = ['auto', 1, 2, 4, 8, Infinity];
+  S.perf = { main: { ms: 0, dt: 16, last: 0 }, tiles: {} };
+  function tileStats(ts, name) {   // tiles loaded per second + pending requests (debug panel)
+    const T = (S.perf.tiles[name] = { loaded: 0, rate: 0, t0: performance.now(), ts });
+    ts.tileLoad.addEventListener(() => { T.loaded++; });
+    setInterval(() => { const now = performance.now(); T.rate = T.loaded / ((now - T.t0) / 1000); T.loaded = 0; T.t0 = now; }, 2000);
+  }
+  const pending = (ts) => { try { return ts._statistics.numberOfPendingRequests + ts._statistics.numberOfTilesProcessing; } catch (e) { return NaN; } };
   // 'auto' (talk default): brisk outbound, slow around the jam, brisk return, slow arrival (captures stay in lockstep)
-  const autoRate = (m) => (m.phase === 'hover' ? 4 : m.phase === 'out' ? 8 : m.tJam !== null && m.t - m.tJam < 8 ? 2 : m.phase === 'home' || (m.k !== null && m.k <= m.H + 2) ? 2 : 4);
+  // (return ~400 s sim for cx_011 -> ~10x keeps it near 40 s wall when captures keep up)
+  const autoRate = (m) => (m.phase === 'hover' ? 4 : m.phase === 'out' ? 8 : m.tJam !== null && m.t - m.tJam < 4 ? 2 : m.phase === 'home' || (m.k !== null && m.k <= m.H + 2) ? 3 : 10);
   const spdLabel = (s) => (s === 'auto' ? 'Auto' : isFinite(s) ? `${s}×` : 'max');
   document.body.classList.toggle('present', S.present);
 
@@ -62,8 +70,10 @@
       this.ctx = this.cv.getContext('2d', { willReadFrequently: true });
     }
     async init() {
-      this.ts = await Cesium.Cesium3DTileset.fromIonAssetId(2275207, { maximumScreenSpaceError: this.sse, showCreditsOnScreen: false });
+      this.ts = await Cesium.Cesium3DTileset.fromIonAssetId(2275207, { maximumScreenSpaceError: this.sse, showCreditsOnScreen: false,
+        cacheBytes: 768 * 1024 * 1024, maximumCacheOverflowBytes: 512 * 1024 * 1024 });
       this.w.scene.primitives.add(this.ts);
+      tileStats(this.ts, 'nadir');
     }
     // raw body-camera frame at local NED (n, e, d); Rcam = camera->NED (x right, y down, z forward); square FOV
     async raw(n, e, d, Rcam, fovDeg, maxWait) {
@@ -72,9 +82,9 @@
       cam.setView({ destination: nedToCart(n, e, d), orientation: { direction: nedVec(col(2)), up: nedVec(col(1).map((x) => -x)) } });
       // tilesLoaded can flip true for a frame while the traversal is still refining after a camera jump: require it on
       // 4 consecutive renders
-      let k = 0, loaded = false, streak = 0;
+      let k = 0, loaded = false, streak = 0, rsum = 0;
       for (;;) {
-        this.w.render(); k++;
+        const tr = performance.now(); this.w.render(); rsum += performance.now() - tr; k++;
         streak = this.ts.tilesLoaded ? streak + 1 : 0;
         if (k >= 3 && streak >= 4) { loaded = true; break; }
         if (performance.now() - t0 > maxWait) break;
@@ -82,13 +92,14 @@
       }
       this.w.render();
       this.ctx.drawImage(this.w.canvas, 0, 0, 224, 224);
-      return { image: this.ctx.getImageData(0, 0, 224, 224), renderMs: performance.now() - t0, loaded, renders: k };
+      const total = performance.now() - t0;
+      return { image: this.ctx.getImageData(0, 0, 224, 224), renderMs: total, gpuMs: rsum / k, waitMs: total - rsum, loaded, renders: k };
     }
     async capture(req, maxWait = 4000) {
       const r = await this.raw(req.n, req.e, req.d, req.Rcam, req.rawFov, maxWait);
       const t0 = performance.now();
       const rect = rectify(r.image, req.Rest, req.Rtgt, req.rawFov, req.fovOut);
-      return Object.assign(rect, { raw: r.image, renderMs: r.renderMs, rectMs: performance.now() - t0, loaded: r.loaded, renders: r.renders });
+      return Object.assign(rect, { raw: r.image, renderMs: r.renderMs, gpuMs: r.gpuMs, waitMs: r.waitMs, rectMs: performance.now() - t0, loaded: r.loaded, renders: r.renders });
     }
   }
   // Pure-rotation homography + scale (hf_world.rectify): output pixel ray in the target (level, north-up) camera ->
@@ -116,36 +127,43 @@
         valid[o] = 1;
       }
     }
-    const mask14 = new Float32Array(196);
-    for (let o = 0; o < N * N; o++) if (valid[o]) mask14[Math.floor(o / N / 16) * 14 + Math.floor((o % N) / 16)] += 1;
-    for (let i = 0; i < 196; i++) mask14[i] = Math.round(mask14[i] / 256 * 255) / 255;
+    const GH = Model.H || 14, GW = Model.W || 14, ch = N / GH, cw = N / GW, mask14 = new Float32Array(GH * GW);   // valid fraction per descriptor cell
+    for (let o = 0; o < N * N; o++) if (valid[o]) mask14[Math.floor(Math.floor(o / N) / ch) * GW + Math.floor((o % N) / cw)] += 1;
+    for (let i = 0; i < GH * GW; i++) mask14[i] = Math.round(mask14[i] / (ch * cw) * 255) / 255;
     // display copy: invalid border shown as a dim hatch so the mask is visible
     for (let o = 0; o < N * N; o++) if (!valid[o]) { const q = o * 4, h = ((o % N) + Math.floor(o / N)) % 8 < 4 ? 46 : 30; dd[q] = dd[q + 1] = dd[q + 2] = h; }
     return { rgb, mask14, valid, image: disp };
   }
 
   // ------------------------------------------------------------------ model (onnxruntime-web)
+  // Model contract comes from models/model.json (files, input, descriptor shape, I/O names, thresholds), so swapping in
+  // another checkpoint is: export ONNX + write model.json + rebuild data/start_*.json (descriptors are model-specific).
   const Model = {
-    async init(ep) {
+    async init(ep, cfg) {
+      this.cfg = cfg;
+      const [C, H, W] = cfg.desc_shape || [16, 14, 14];
+      Object.assign(this, { C, H, W, IN: cfg.input || { name: 'rgb', shape: [1, 224, 224, 3], dtype: 'uint8' }, MI: cfg.matcher_inputs || { q: 'q', qm: 'qm', b: 'b', bm: 'bm' },
+        MO: cfg.matcher_outputs || { offset_cells: 'offset_cells', cov_cells: 'cov_cells', arrival_logit: 'arrival_logit', nomatch_logit: 'nomatch_logit', shift_probs: 'shift_probs' } });
       ort.env.wasm.wasmPaths = ORT_DIST;
       ort.env.wasm.numThreads = self.crossOriginIsolated ? Math.min(4, navigator.hardwareConcurrency || 1) : 1;
       const eps = ep === 'webgpu' ? ['webgpu', 'wasm'] : ['wasm'];
       this.ep = ep;
-      this.enc = await ort.InferenceSession.create('models/encoder.onnx', { executionProviders: eps, graphOptimizationLevel: 'all' });
-      this.mat = await ort.InferenceSession.create('models/matcher.onnx', { executionProviders: eps, graphOptimizationLevel: 'all' });
-      this.ones = new Float32Array(196).fill(1);
+      this.enc = await ort.InferenceSession.create('models/' + (cfg.encoder || 'encoder.onnx'), { executionProviders: eps, graphOptimizationLevel: 'all' });
+      this.mat = await ort.InferenceSession.create('models/' + (cfg.matcher || 'matcher.onnx'), { executionProviders: eps, graphOptimizationLevel: 'all' });
+      this.ones = new Float32Array(this.H * this.W).fill(1);
     },
     async encode(rgb) {
       const t0 = performance.now();
-      const o = await this.enc.run({ rgb: new ort.Tensor('uint8', rgb, [1, 224, 224, 3]) });
-      return { desc: new Float32Array(o.desc.data), ms: performance.now() - t0 };
+      const o = await this.enc.run({ [this.IN.name]: new ort.Tensor(this.IN.dtype, rgb, this.IN.shape) });
+      return { desc: new Float32Array(o[this.cfg.desc_output || 'desc'].data), ms: performance.now() - t0 };
     },
     async match(q, qm, b, bm) {
       const t0 = performance.now(), T = (a, s) => new ort.Tensor('float32', a, s);
-      const o = await this.mat.run({ q: T(q, [1, 16, 14, 14]), qm: T(qm || this.ones, [1, 14, 14]), b: T(b, [1, 16, 14, 14]), bm: T(bm || this.ones, [1, 14, 14]) });
-      const mu = o.offset_cells.data, c = o.cov_cells.data, sig = (x) => 1 / (1 + Math.exp(-x));
-      return { mu: [mu[0], mu[1]], cov: [[c[0], c[1]], [c[2], c[3]]], pArr: sig(o.arrival_logit.data[0]), pNm: sig(o.nomatch_logit.data[0]),
-        probs: o.shift_probs ? new Float32Array(o.shift_probs.data) : null, ms: performance.now() - t0 };
+      const D = [1, this.C, this.H, this.W], Mk = [1, this.H, this.W], I = this.MI, O = this.MO;
+      const o = await this.mat.run({ [I.q]: T(q, D), [I.qm]: T(qm || this.ones, Mk), [I.b]: T(b, D), [I.bm]: T(bm || this.ones, Mk) });
+      const mu = o[O.offset_cells].data, c = o[O.cov_cells].data, sig = (x) => 1 / (1 + Math.exp(-x));
+      return { mu: [mu[0], mu[1]], cov: [[c[0], c[1]], [c[2], c[3]]], pArr: sig(o[O.arrival_logit].data[0]), pNm: sig(o[O.nomatch_logit].data[0]),
+        probs: O.shift_probs && o[O.shift_probs] ? new Float32Array(o[O.shift_probs].data) : null, ms: performance.now() - t0 };
     },
   };
 
@@ -160,9 +178,15 @@
     });
     viewer.scene.skyAtmosphere.show = true;
     viewer.scene.fog.enabled = true;
-    viewer.scene.postProcessStages.fxaa.enabled = true;
-    const ts = await Cesium.Cesium3DTileset.fromIonAssetId(2275207, { maximumScreenSpaceError: 16, showCreditsOnScreen: true });
+    viewer.scene.postProcessStages.fxaa.enabled = false;
+    // cheaper streaming for the context view: coarser LOD, dynamic SSE (fewer far tiles), foveated loading, bigger cache
+    const ts = await Cesium.Cesium3DTileset.fromIonAssetId(2275207, { maximumScreenSpaceError: parseFloat(params.get('mainsse') || '28'), showCreditsOnScreen: true,
+      dynamicScreenSpaceError: true, foveatedScreenSpaceError: true, cacheBytes: 768 * 1024 * 1024, maximumCacheOverflowBytes: 512 * 1024 * 1024 });
     viewer.scene.primitives.add(ts);
+    tileStats(ts, 'main');
+    let tpre = 0;
+    viewer.scene.preRender.addEventListener(() => { tpre = performance.now(); });
+    viewer.scene.postRender.addEventListener(() => { const now = performance.now(), M = S.perf.main; M.ms = 0.9 * M.ms + 0.1 * (now - tpre); M.dt = 0.9 * M.dt + 0.1 * (now - (M.last || now)); M.last = now; });
     S.mainTs = ts;
   }
   function buildScene(m) {
@@ -270,7 +294,7 @@
     // aim between the drone and the ground below it, so the fixes drawn on the ground stay in view
     const agl = Math.max(-m.D - ground.at(m.p[0], m.p[1]), 30);
     const aim = nedToCart(m.p[0], m.p[1], m.D + 0.6 * agl);
-    viewer.camera.lookAt(aim, new Cesium.HeadingPitchRange(headingSm + Cesium.Math.toRadians(28), Cesium.Math.toRadians(-38), 260 + 1.4 * agl));
+    viewer.camera.lookAt(aim, new Cesium.HeadingPitchRange(headingSm + Cesium.Math.toRadians(28), Cesium.Math.toRadians(-48), 240 + 1.3 * agl));
   }
 
   // ------------------------------------------------------------------ HUD + inset
@@ -296,7 +320,11 @@
       rows.push(['Fixes fused', `${fused}/${fr.length} (${fmt(100 * fused / fr.length, 0)}%)`]);
       if (last) rows.push(['Last fix', `${last.status} · err ${fmt(last.fixErr)} m · σ ${fmt(last.sigma)} m`], ['p_nomatch / p_arrival', `${fmt(last.pNm, 3)} / ${fmt(last.pArr, 3)}`]);
     }
-    if (S.lastMs) rows.push(['Model (enc + match)', `${fmt(S.lastMs.enc)} + ${fmt(S.lastMs.mat)} ms (${Model.ep})`], ['Render / rectify', `${fmt(S.lastMs.render, 0)} / ${fmt(S.lastMs.rect, 0)} ms`]);
+    if (S.lastMs) rows.push(['Model (enc + match)', `${fmt(S.lastMs.enc)} + ${fmt(S.lastMs.mat)} ms (${Model.ep})`],
+      ['Nadir: GPU / tile wait / rectify', `${fmt(S.lastMs.gpu, 1)} / ${fmt(S.lastMs.wait, 0)} / ${fmt(S.lastMs.rect, 0)} ms`], ['Nav (KF+sim) per step', `${fmt(S.lastMs.nav, 2)} ms`]);
+    const P = S.perf, tm = P.tiles.main, tn = P.tiles.nadir;
+    rows.push(['Main view', `${fmt(P.main.ms, 1)} ms render · ${fmt(1000 / Math.max(P.main.dt, 1), 0)} fps`]);
+    if (tm || tn) rows.push(['Tiles/s · pending', `main ${fmt(tm?.rate, 0)} · ${tm ? pending(tm.ts) : '–'} | nadir ${fmt(tn?.rate, 0)} · ${tn ? pending(tn.ts) : '–'}`]);
     $('stats').innerHTML = rows.map(([a, b]) => `<dt>${a}</dt><dd>${b}</dd>`).join('');
     if (last && ours) {
       $('bar-conf').style.width = `${100 * (1 - last.pNm)}%`; $('bar-arr').style.width = `${100 * last.pArr}%`;
@@ -361,27 +389,55 @@
     $('mission').value = spec.id;
     S.vision = vision; segOn();
     const wind = opts.wind ?? (S.wind !== null ? { speed: S.wind, fromDeg: spec.wind_from_deg } : undefined);
-    const m = new Nav.Mission(spec, { vision, drift, ground, thr, camHz: opts.camHz, realism: opts.realism ?? S.realism, wind, retAgl: opts.retAgl,
+    const m = new Nav.Mission(spec, { vision, drift, ground, thr, camHz: opts.camHz ?? parseFloat(params.get('camhz') || ((opts.start ?? params.get('start')) === 'jam' ? '1' : '2')), realism: opts.realism ?? S.realism, wind, retAgl: opts.retAgl,
       homeBcs: opts.homeBcs ?? (params.has('homebcs') ? parseInt(params.get('homebcs'), 10) : 4), seedOffset: opts.seedOffset ?? 0,
       multiBc: opts.multiBc ?? (params.get('multibc') === '0' ? 1 : 3) });
+    S.seedOffset = opts.seedOffset ?? 0;
     S.mission = m; S.running = true; headingSm = null; S.abort = null; S.lastFrame = null;
     buildScene(m);
     $('bcimg').getContext('2d').clearRect(0, 0, 224, 224); $('rectimg').getContext('2d').clearRect(0, 0, 224, 224);
     const speed = () => opts.speed ?? S.speed;
-    let wall0 = performance.now(), sim0 = 0;
+    let wall0 = performance.now(), sim0 = 0;   // (reset after a skipped outbound)
     const maxWait = parseFloat(params.get('wait') || opts.wait || '4000');
     // pre-flight: the camera streams the tiles around home before take-off (otherwise the first breadcrumbs are taken from
-    // the coarse root tiles while the tileset is still loading)
-    if (vision) {
+    // the coarse root tiles while the tileset is still loading). The request is drawn in every mode (same RNG stream).
+    const q0 = m.camReq('bc', {}, 90);
+    const start = opts.start ?? params.get('start');
+    if (start === 'jam') {
+      // skip the outbound (GPS-good flying): replay the same deterministic mission to the jam point, answering every
+      // breadcrumb request with the descriptors captured offline by the identical code path (data/start_<id>_s<seed>.json)
+      status('Loading pre-flown outbound…');
+      const pre = await loadPre(spec.id, opts.seedOffset ?? 0);
+      for (let n = 0; ; n++) {
+        const r = m.advance(1.0);
+        if (r.type === 'done' || r.type === 'cam') break;
+        if (r.type === 'bc') {
+          const b = pre.bcs[r.i];
+          if (!b) throw new Error(`pre-flown data has no breadcrumb ${r.i}`);
+          m.provide({ desc: b.desc, mask14: b.mask14, img: b.img, loaded: true });
+          Object.assign(m.bcs[r.i], { pe: b.pe, P: b.P, pt: b.pt, D: b.D, alt: b.alt, agl: b.agl, agl_s: b.agl_s, bucket: b.bucket, fov_deg: b.fov_deg });
+          addBcEnt(m, m.bcs[r.i]);
+        }
+        if (n % 2000 === 0) await sleep(0);
+      }
+      drawBc(m, null);
+      // warm the camera tiles along the first part of the return corridor (browser cache keeps them for the run)
+      status('Loading terrain…');
+      const k0 = m.bcs.length - 1, Rlvl = Nav.m3([[1, 0, 0], [0, 1, 0], [0, 0, 1]], Nav.CAM);
+      for (let j = k0; j >= Math.max(0, k0 - 30); j -= 5) { const b = m.bcs[j]; await S.cam.raw(b.pt[0], b.pt[1], m.D, Rlvl, 90, 8000); }
+      wall0 = performance.now(); sim0 = m.t;
+    } else if (vision) {
       status('Pre-flight: loading camera tiles…');
-      const q0 = m.camReq('bc', {}, 90);
       await S.cam.raw(q0.n, q0.e, q0.d, q0.Rcam, q0.rawFov, 60000);
     }
     const showCam = !vision && viewer;   // stock: keep the camera strip alive at ~2 Hz for the visual
     let nextShow = 0;
     for (;;) {
       if (S.abort === m) break;
+      if (opts.stopAtJam && m.tJam !== null && !m.pending) break;
+      const tn0 = performance.now(), st0 = m.t;
       const r = m.advance(0.1);
+      if (m.t > st0) S.navMs = 0.9 * (S.navMs || 0) + 0.1 * (performance.now() - tn0) / Math.max(1, Math.round((m.t - st0) / 0.02));
       if (r.type === 'done') break;
       if (r.type === 'bc' || r.type === 'cam') {
         const cap = await S.cam.capture(r, r.type === 'bc' ? Math.max(maxWait, 30000) : maxWait);   // breadcrumbs must be sharp
@@ -409,8 +465,8 @@
           res.ms = enc.ms + matMs;
           m.provide(res);
           const f = m.frames[m.frames.length - 1];
-          Object.assign(f, { renderMs: cap.renderMs, rectMs: cap.rectMs, loaded: cap.loaded, encMs: enc.ms });
-          S.lastMs = { enc: enc.ms, mat: matMs, render: cap.renderMs, rect: cap.rectMs };
+          Object.assign(f, { renderMs: cap.renderMs, rectMs: cap.rectMs, loaded: cap.loaded, encMs: enc.ms, gpuMs: cap.gpuMs, waitMs: cap.waitMs, matMs, mainMs: S.perf.main.ms, mainFps: 1000 / Math.max(S.perf.main.dt, 1) });
+          S.lastMs = { enc: enc.ms, mat: matMs, render: cap.renderMs, rect: cap.rectMs, gpu: cap.gpuMs, wait: cap.waitMs, nav: S.navMs };
           drawBc(m, f); addFixEnt(m, f); S.lastFrame = f;
         }
         if (!cap.loaded) S.log.push(`frame at t=${m.t.toFixed(1)} rendered before all tiles loaded`);
@@ -439,6 +495,28 @@
     return sum;
   }
 
+  // pre-flown outbound: int8 descriptors (unit-norm cells, x127), uint8 masks (x255), JPEG breadcrumb thumbnails
+  async function loadPre(id, seed) {
+    const r = await fetch(`data/start_${id}_s${seed}.json`);
+    if (!r.ok) throw new Error(`no pre-flown outbound for ${id} (seed ${seed})`);
+    const J = await r.json();
+    if ((J.model || 'offset-v3-mdcal') !== (thr.id || 'offset-v3-mdcal')) throw new Error(`pre-flown outbound was built with model ${J.model}, page runs ${thr.id}: rebuild data/start_${id}_s${seed}.json`);
+    const b64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+    const img = async (url) => { const im = new Image(); im.src = url; await im.decode(); const c = document.createElement('canvas'); c.width = c.height = 224; const x = c.getContext('2d'); x.drawImage(im, 0, 0); return x.getImageData(0, 0, 224, 224); };
+    for (const b of J.bcs) {
+      const q = new Int8Array(b64(b.desc_i8).buffer); b.desc = Float32Array.from(q, (v) => v / 127);
+      b.mask14 = Float32Array.from(b64(b.mask_u8), (v) => v / 255);
+      b.img = await img(b.jpeg);
+    }
+    return J;
+  }
+  async function exportPre() {   // used offline to build data/start_<id>_s<seed>.json
+    const m = S.mission, c = document.createElement('canvas'); c.width = c.height = 224; const x = c.getContext('2d');
+    const enc = (u8) => { let s = ''; for (let i = 0; i < u8.length; i += 8192) s += String.fromCharCode.apply(null, u8.subarray(i, i + 8192)); return btoa(s); };
+    return { model: thr.id, mission: m.spec.id, seedOffset: S.seedOffset ?? 0, camHz: 1 / m.camDt, homeBcs: m.H, realism: m.realism, t_jam: m.tJam,
+      bcs: m.bcs.map((b) => { x.putImageData(b.img, 0, 0); return { i: b.i, t: b.t, home: !!b.home, pe: b.pe, P: b.P, pt: b.pt, D: b.D, alt: b.alt, agl: b.agl, agl_s: b.agl_s, bucket: b.bucket, fov_deg: b.fov_deg,
+        desc_i8: enc(new Uint8Array(Int8Array.from(b.desc, (v) => Math.max(-127, Math.min(127, Math.round(v * 127)))).buffer)), mask_u8: enc(Uint8Array.from(b.mask14, (v) => Math.round(v * 255))), jpeg: c.toDataURL('image/jpeg', 0.85) }; }) };
+  }
   function segOn() { document.querySelectorAll('[data-scn]').forEach((b) => b.classList.toggle('on', (b.dataset.scn === 'ours') === S.vision)); }
 
   // ------------------------------------------------------------------ boot
@@ -458,8 +536,10 @@
     const sel = $('mission');
     missions.forEach((s) => sel.insertAdjacentHTML('beforeend', `<option value="${s.id}">${s.id.replace('mission_', 'M').replace('cx_', 'CX ')} · ${(s.legs.reduce((a, l) => a + l[1], 0) * (s.jam_frac ?? 1) / 1000).toFixed(1)} km${s.shape ? ' ' + s.shape : ''}</option>`));
     if (params.get('mission')) sel.value = params.get('mission');
+    else if (params.has('embed')) sel.value = 'cx_011';   // talk default: same zig-zag route as the stock slide, starting at the jam
+    if (params.has('embed') && !params.has('start')) params.set('start', 'jam');
     status('Loading model + tiles…');
-    await Model.init(params.get('ep') || 'wasm');
+    await Model.init(params.get('ep') || 'wasm', thr);
     S.cam = new DroneCam('nadir', parseFloat(params.get('sse') || '16'));
     await S.cam.init();
     if (params.get('main') !== '0') await initMain();
@@ -502,6 +582,7 @@
 
   window.__live = {
     fly: (id, vision, opts) => fly(id, vision, opts),
+    exportPre: () => exportPre(),
     state: () => { const m = S.mission; return m ? { t: m.t, phase: m.phase, k: m.k, bcs: m.bcs.length, frames: m.frames.length, err: Math.hypot(m.p[0] - m.kf.x[0], m.p[1] - m.kf.x[1]), home: Math.hypot(m.p[0] - m.home[0], m.p[1] - m.home[1]), done: m.done, running: S.running } : null; },
     summary: () => S.lastSummary,
     frames: () => (S.mission ? S.mission.frames.map((f) => { const { probs, ...rest } = f; return rest; }) : []),

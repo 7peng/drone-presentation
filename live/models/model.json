@@ -19,5 +19,41 @@
   371.50418534399984,
   445.8050224127998,
   534.9660268953597
- ]
+ ],
+ "id": "offset-v3-mdcal",
+ "encoder": "encoder.onnx",
+ "matcher": "matcher.onnx",
+ "input": {
+  "name": "rgb",
+  "shape": [
+   1,
+   224,
+   224,
+   3
+  ],
+  "dtype": "uint8",
+  "note": "rectified RGB, row 0 = north edge"
+ },
+ "desc_shape": [
+  16,
+  14,
+  14
+ ],
+ "desc_output": "desc",
+ "matcher_inputs": {
+  "q": "q",
+  "qm": "qm",
+  "b": "b",
+  "bm": "bm"
+ },
+ "matcher_outputs": {
+  "offset_cells": "offset_cells",
+  "cov_cells": "cov_cells",
+  "arrival_logit": "arrival_logit",
+  "nomatch_logit": "nomatch_logit",
+  "shift_probs": "shift_probs"
+ },
+ "cell_px": 16,
+ "shift_radius": 7,
+ "units": "offset_cells (d_row, d_col); Delta_NE = (m*d_row, -m*d_col), m = bucket_m/desc_shape[2] of the breadcrumb; fix = breadcrumb_pos - Delta_NE"
 }

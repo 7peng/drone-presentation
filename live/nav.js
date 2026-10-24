@@ -142,7 +142,10 @@
     constructor(d) {
       this.dt = d.dt; this.a = d.a_ne;
       const n = Math.max(1, Math.round(20 / d.dt)), tail = this.a.slice(-n);
-      this.tail = [tail.reduce((s, x) => s + x[0], 0) / tail.length, tail.reduce((s, x) => s + x[1], 0) / tail.length];
+      // beyond the replay (205 s) the acceleration error ends and the velocity error it built up persists (linear drift);
+      // holding the tail acceleration would grow quadratically to ~10 km on a 15 min return (PX4 cx_011 stock: 1.7 km)
+      this.tail = [0, 0];
+      void tail;
     }
     at(t) {
       if (t < 0) return [0, 0];

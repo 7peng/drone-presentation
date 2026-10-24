@@ -219,7 +219,7 @@
     <h2>What the drone sees on the way back</h2>
     <figure>
       <video data-src="media/rth_mission012.mp4" poster="media/rth_mission012_poster.jpg" muted loop playsinline preload="none"></video>
-      <figcaption>Median mission, ×8. Top: live frame after rectification next to the breadcrumb it is matched against. Left: true return (white) and estimate (green) over the map.</figcaption>
+      <figcaption>Median mission of 32, sped up. Top: live frame after rectification next to the breadcrumb it is matched against. Left: true return (white) and estimate (green) over the map.</figcaption>
     </figure>
     <div class="notes">
       <p><b>~20 s.</b> Top middle is what the camera sees after rectification; top right is the breadcrumb it's looking for. The model says "you are 4 m south-east of it, ± 4 m", and the EKF moves on to the next breadcrumb. Fix yield is 99.7%.</p>
@@ -230,15 +230,103 @@
   <section class="slide s-results" data-steps="1" data-title="Results" data-time="25">
     <p class="eyebrow">Results · closed-loop return to home</p>
     <h2>32 of 32 missions home within 10 m</h2>
-    <div class="metrics">
+    <div class="metrics" style="padding:32px 0">
       <div class="metric"><div class="value"><strong>32</strong><span>vs</span>0</div><p>missions home within 10 m<br>ours vs stock PX4</p></div>
       <div class="metric"><div class="value"><strong>3.3 m</strong><span>vs</span>847 m</div><p>median distance from home</p><small>p90 7.5 m vs 4.2 km</small></div>
-      <div class="metric"><div class="value"><strong>3.1 m</strong></div><p>median position error during the return</p></div>
+      <div class="metric"><div class="value"><strong>3.1 m</strong></div><p>median position error during the return</p><small>real PX4 EKF2, same fixes: 3.8 m</small></div>
     </div>
-    <div class="callout step" data-step="1" style="margin-top:48px"><p>Cross-check: replaying the same vision fixes through real PX4 EKF2 gives <strong>3.8 m</strong>, against <strong>3.5 m</strong> in our EKF twin.</p></div>
+    <figure class="step" data-step="1" style="margin-top:28px">
+<!-- results-chart:start -->
+<svg class="chart" viewBox="0 0 1600 300" role="img" aria-label="Final distance from home per mission, log scale: ours all under 10 m, stock PX4 106 m to 8 km">
+<line x1="335.7" x2="335.7" y1="40" y2="250" class="grid"/>
+<text x="335.7" y="288" class="tick" text-anchor="middle">1 m</text>
+<line x1="620.3" x2="620.3" y1="40" y2="250" class="grid"/>
+<text x="620.3" y="288" class="tick" text-anchor="middle">10 m</text>
+<line x1="905.0" x2="905.0" y1="40" y2="250" class="grid"/>
+<text x="905.0" y="288" class="tick" text-anchor="middle">100 m</text>
+<line x1="1189.7" x2="1189.7" y1="40" y2="250" class="grid"/>
+<text x="1189.7" y="288" class="tick" text-anchor="middle">1 km</text>
+<line x1="1474.3" x2="1474.3" y1="40" y2="250" class="grid"/>
+<text x="1474.3" y="288" class="tick" text-anchor="middle">10 km</text>
+<line x1="620.3" x2="620.3" y1="32" y2="250" class="thr"/>
+<text x="632.3" y="28" class="thr-l">home: within 10 m</text>
+<text x="0" y="103" class="row">Our system</text>
+<circle cx="264.3" cy="82" r="9" fill="#315c91" class="dot"><title>mission_009: 0.6 m</title></circle>
+<circle cx="293.7" cy="95" r="9" fill="#315c91" class="dot"><title>mission_021: 0.7 m</title></circle>
+<circle cx="294.4" cy="108" r="9" fill="#315c91" class="dot"><title>mission_010: 0.7 m</title></circle>
+<circle cx="315.9" cy="82" r="9" fill="#315c91" class="dot"><title>mission_003: 0.9 m</title></circle>
+<circle cx="324.2" cy="95" r="9" fill="#315c91" class="dot"><title>mission_011: 0.9 m</title></circle>
+<circle cx="326.6" cy="108" r="9" fill="#315c91" class="dot"><title>mission_006: 0.9 m</title></circle>
+<circle cx="345.2" cy="82" r="9" fill="#315c91" class="dot"><title>mission_012: 1.1 m</title></circle>
+<circle cx="371.5" cy="95" r="9" fill="#315c91" class="dot"><title>mission_014: 1.3 m</title></circle>
+<circle cx="377.7" cy="108" r="9" fill="#315c91" class="dot"><title>mission_007: 1.4 m</title></circle>
+<circle cx="407.4" cy="82" r="9" fill="#315c91" class="dot"><title>mission_002: 1.8 m</title></circle>
+<circle cx="412.8" cy="95" r="9" fill="#315c91" class="dot"><title>mission_026: 1.9 m</title></circle>
+<circle cx="419.5" cy="108" r="9" fill="#315c91" class="dot"><title>mission_023: 2.0 m</title></circle>
+<circle cx="464.5" cy="82" r="9" fill="#315c91" class="dot"><title>mission_017: 2.8 m</title></circle>
+<circle cx="466.8" cy="95" r="9" fill="#315c91" class="dot"><title>mission_005: 2.9 m</title></circle>
+<circle cx="473.8" cy="108" r="9" fill="#315c91" class="dot"><title>mission_031: 3.1 m</title></circle>
+<circle cx="480.4" cy="82" r="9" fill="#315c91" class="dot"><title>mission_020: 3.2 m</title></circle>
+<circle cx="484.0" cy="95" r="9" fill="#315c91" class="dot"><title>mission_013: 3.3 m</title></circle>
+<circle cx="491.5" cy="108" r="9" fill="#315c91" class="dot"><title>mission_008: 3.5 m</title></circle>
+<circle cx="491.7" cy="82" r="9" fill="#315c91" class="dot"><title>mission_004: 3.5 m</title></circle>
+<circle cx="495.6" cy="95" r="9" fill="#315c91" class="dot"><title>mission_030: 3.6 m</title></circle>
+<circle cx="498.1" cy="108" r="9" fill="#315c91" class="dot"><title>mission_027: 3.7 m</title></circle>
+<circle cx="499.8" cy="82" r="9" fill="#315c91" class="dot"><title>mission_001: 3.8 m</title></circle>
+<circle cx="505.9" cy="95" r="9" fill="#315c91" class="dot"><title>mission_018: 4.0 m</title></circle>
+<circle cx="513.5" cy="108" r="9" fill="#315c91" class="dot"><title>mission_032: 4.2 m</title></circle>
+<circle cx="519.6" cy="82" r="9" fill="#315c91" class="dot"><title>mission_024: 4.4 m</title></circle>
+<circle cx="538.6" cy="95" r="9" fill="#315c91" class="dot"><title>mission_015: 5.2 m</title></circle>
+<circle cx="539.6" cy="108" r="9" fill="#315c91" class="dot"><title>mission_022: 5.2 m</title></circle>
+<circle cx="566.0" cy="82" r="9" fill="#315c91" class="dot"><title>mission_028: 6.4 m</title></circle>
+<circle cx="587.5" cy="95" r="9" fill="#315c91" class="dot"><title>mission_019: 7.7 m</title></circle>
+<circle cx="598.8" cy="108" r="9" fill="#315c91" class="dot"><title>mission_025: 8.4 m</title></circle>
+<circle cx="604.3" cy="82" r="9" fill="#315c91" class="dot"><title>mission_029: 8.8 m</title></circle>
+<circle cx="607.3" cy="95" r="9" fill="#315c91" class="dot"><title>mission_016: 9.0 m</title></circle>
+<line x1="482.2" x2="482.2" y1="61" y2="129" class="med"/>
+<text x="482.2" y="155" class="med-l" text-anchor="middle">median 3.3 m</text>
+<text x="0" y="208" class="row">Stock PX4</text>
+<circle cx="912.5" cy="187" r="9" fill="#8a929b" class="dot"><title>mission_015: 106.2 m</title></circle>
+<circle cx="938.2" cy="200" r="9" fill="#8a929b" class="dot"><title>mission_011: 130.8 m</title></circle>
+<circle cx="947.8" cy="213" r="9" fill="#8a929b" class="dot"><title>mission_010: 141.4 m</title></circle>
+<circle cx="973.7" cy="187" r="9" fill="#8a929b" class="dot"><title>mission_024: 174.3 m</title></circle>
+<circle cx="992.8" cy="200" r="9" fill="#8a929b" class="dot"><title>mission_014: 203.4 m</title></circle>
+<circle cx="995.4" cy="213" r="9" fill="#8a929b" class="dot"><title>mission_006: 207.8 m</title></circle>
+<circle cx="1007.3" cy="187" r="9" fill="#8a929b" class="dot"><title>mission_012: 228.8 m</title></circle>
+<circle cx="1026.3" cy="200" r="9" fill="#8a929b" class="dot"><title>mission_032: 266.7 m</title></circle>
+<circle cx="1030.8" cy="213" r="9" fill="#8a929b" class="dot"><title>mission_007: 276.6 m</title></circle>
+<circle cx="1041.4" cy="187" r="9" fill="#8a929b" class="dot"><title>mission_029: 301.5 m</title></circle>
+<circle cx="1049.4" cy="200" r="9" fill="#8a929b" class="dot"><title>mission_020: 321.6 m</title></circle>
+<circle cx="1094.2" cy="213" r="9" fill="#8a929b" class="dot"><title>mission_022: 462.0 m</title></circle>
+<circle cx="1123.9" cy="187" r="9" fill="#8a929b" class="dot"><title>mission_030: 587.6 m</title></circle>
+<circle cx="1136.5" cy="200" r="9" fill="#8a929b" class="dot"><title>mission_005: 650.6 m</title></circle>
+<circle cx="1141.0" cy="213" r="9" fill="#8a929b" class="dot"><title>mission_023: 674.7 m</title></circle>
+<circle cx="1165.2" cy="187" r="9" fill="#8a929b" class="dot"><title>mission_001: 820.5 m</title></circle>
+<circle cx="1173.0" cy="200" r="9" fill="#8a929b" class="dot"><title>mission_003: 873.9 m</title></circle>
+<circle cx="1177.7" cy="213" r="9" fill="#8a929b" class="dot"><title>mission_018: 907.5 m</title></circle>
+<circle cx="1191.8" cy="187" r="9" fill="#8a929b" class="dot"><title>mission_008: 1,017.9 m</title></circle>
+<circle cx="1230.1" cy="200" r="9" fill="#8a929b" class="dot"><title>mission_004: 1,387.0 m</title></circle>
+<circle cx="1231.4" cy="213" r="9" fill="#8a929b" class="dot"><title>mission_028: 1,401.5 m</title></circle>
+<circle cx="1233.4" cy="187" r="9" fill="#8a929b" class="dot"><title>mission_016: 1,424.9 m</title></circle>
+<circle cx="1244.6" cy="200" r="9" fill="#8a929b" class="dot"><title>mission_031: 1,559.2 m</title></circle>
+<circle cx="1252.0" cy="213" r="9" fill="#8a929b" class="dot"><title>mission_002: 1,656.3 m</title></circle>
+<circle cx="1267.5" cy="187" r="9" fill="#8a929b" class="dot"><title>mission_013: 1,876.7 m</title></circle>
+<circle cx="1280.9" cy="200" r="9" fill="#8a929b" class="dot"><title>mission_017: 2,091.6 m</title></circle>
+<circle cx="1282.2" cy="213" r="9" fill="#8a929b" class="dot"><title>mission_019: 2,113.7 m</title></circle>
+<circle cx="1317.3" cy="187" r="9" fill="#8a929b" class="dot"><title>mission_025: 2,807.1 m</title></circle>
+<circle cx="1370.2" cy="200" r="9" fill="#8a929b" class="dot"><title>mission_009: 4,308.9 m</title></circle>
+<circle cx="1373.8" cy="213" r="9" fill="#8a929b" class="dot"><title>mission_026: 4,436.4 m</title></circle>
+<circle cx="1425.8" cy="187" r="9" fill="#8a929b" class="dot"><title>mission_027: 6,756.9 m</title></circle>
+<circle cx="1446.2" cy="200" r="9" fill="#8a929b" class="dot"><title>mission_021: 7,968.0 m</title></circle>
+<line x1="1169.2" x2="1169.2" y1="166" y2="234" class="med"/>
+<text x="1169.2" y="156" class="med-l" text-anchor="middle">median 847 m</text>
+</svg>
+<!-- results-chart:end -->
+      <figcaption>Distance from home at the end of each return. One dot per mission, log scale; bar = median.</figcaption>
+    </figure>
     <p class="footnote">32 missions over Magdeburg: 1–4 km out, 100–200 m AGL, wind up to 6 m/s with gusts. GPS jammed at the turnaround. Model v2. Stock = PX4 EKF2 replay of the same flights. Magdeburg terrain was in training (different flights); see held-out test.</p>
     <div class="notes">
-      <p><b>~25 s · 1 click.</b> Every one of 32 missions gets home within 10 m; median 3.3 m. Stock PX4 gets none of them home. During the return our position error is about 3 m. (click) And this isn't an artifact of our own EKF: feeding the same fixes through real PX4 EKF2 gives 3.8 m vs 3.5 m.</p>
+      <p><b>~25 s · 1 click.</b> Every one of 32 missions gets home within 10 m; median 3.3 m. Stock PX4 gets none of them home. During the return our position error is about 3 m. (click) Each dot is one mission: ours all sit left of the 10 m line, stock spreads from 100 m to 8 km. And it isn't an artifact of our own EKF: feeding the same fixes through real PX4 EKF2 gives 3.8 m vs 3.5 m in our twin.</p>
     </div>
   </section>
 

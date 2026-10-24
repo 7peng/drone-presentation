@@ -61,13 +61,17 @@
     const d = await r.json();
     const C = Cesium.Cartesian3;
     d.P = d.truth.map((p) => C.fromDegrees(p[1], p[0], p[2]));
-    d.E = d.est.map((p) => C.fromDegrees(p[1], p[0], p[2]));
+    d.E = d.est.map((p) => C.fromDegrees(p[1], p[0], p[2] + 4));   // +4 m: drawn above the white path it may retrace (no z-fight)
     d.H = C.fromDegrees(d.home[1], d.home[0], d.home[2] + 1.5);
     d.J = C.fromDegrees(d.jam[1], d.jam[0], d.jam[2] + 1.5);
     d.T = d.t[d.t.length - 1];
     d.ev = Object.fromEntries(d.events.map((e) => [e.key, e.t]));
     d.ground = d.home[2];
-    d.sphere = Cesium.BoundingSphere.fromPoints(d.P.concat(d.E, [d.H]));
+    const lats = d.truth.concat(d.est, [d.home]).map((p) => p[0]), lons = d.truth.concat(d.est, [d.home]).map((p) => p[1]);
+    const [s0, n0, w0, e0] = [Math.min(...lats), Math.max(...lats), Math.min(...lons), Math.max(...lons)];
+    const dl = Math.max(n0 - s0, (e0 - w0) * 0.62), mid = (s0 + n0) / 2, mlon = (w0 + e0) / 2;
+    // padded overview rectangle; extra room at the bottom for the control bar
+    d.overview = Cesium.Rectangle.fromDegrees(mlon - dl * 1.1, mid - dl * 0.85, mlon + dl * 1.1, mid + dl * 0.65);
     cache[name] = d;
     return d;
   }
@@ -154,7 +158,7 @@
         width: 1.5, material: C.WHITE.withAlpha(0.6), depthFailMaterial: C.WHITE.withAlpha(0.25),
       },
     });
-    add({ position: D.H, billboard: { image: ICON_HOME, width: 30, height: 30, disableDepthTestDistance: NO_DEPTH }, label: label('Home', { dy: 30 }) });
+    add({ position: D.H, billboard: { image: ICON_HOME, width: 30, height: 30, disableDepthTestDistance: NO_DEPTH }, label: label('Home', { dy: 30, extra: { show: cb(() => !(D.kind === 'stock' && atHome())) } }) });
     // home pole: ground marker up to flight altitude, so perspective views read correctly
     add({ polyline: { positions: [D.H, Cesium.Cartesian3.fromDegrees(D.home[1], D.home[0], D.home[2] + D.agl_m)], width: 1.5,
       material: new Cesium.PolylineDashMaterialProperty({ color: C.WHITE.withAlpha(0.8), dashLength: 10 }) } });
@@ -163,8 +167,8 @@
       position: cb(estNow),
       point: { pixelSize: 13, color: estCol, outlineColor: C.WHITE, outlineWidth: 2, disableDepthTestDistance: NO_DEPTH, show: cb(jammed) },
       label: label(atHome() ? 'Thinks it is home' : 'Thinks it is here', {
-        fg: '#ffffff', bg: '#b3261e', dx: -18, dy: 0,
-        extra: { horizontalOrigin: Cesium.HorizontalOrigin.RIGHT, text: cb(() => (atHome() ? 'Thinks it is home' : 'Thinks it is here')),
+        fg: '#ffffff', bg: '#b3261e', dy: -28,
+        extra: { text: cb(() => (atHome() ? 'Thinks it is home' : 'Thinks it is here')),
           show: cb(() => D.kind === 'stock' && jammed() && errNow() > 25) },
       }),
     });
@@ -174,7 +178,7 @@
         polyline: { positions: cb(() => [Cesium.Cartesian3.clone(truthNow()), Cesium.Cartesian3.clone(estNow())]), width: 2,
           material: new Cesium.PolylineDashMaterialProperty({ color: C.fromCssColorString('#ffd60a'), dashLength: 14 }), show: cb(atHome) },
       });
-      add({ position: cb(truthNow), label: label('', { dx: 26, dy: 0, extra: { horizontalOrigin: Cesium.HorizontalOrigin.LEFT, text: cb(() => `Actually ${Math.round(errNow())} m away`), show: cb(atHome) } }) });
+      add({ position: cb(truthNow), label: label('', { dy: 38, extra: { text: cb(() => `Actually ${Math.round(errNow())} m away`), show: cb(atHome) } }) });
     }
   }
 
@@ -233,9 +237,7 @@
     document.querySelectorAll('[data-cam]').forEach((b) => b.classList.toggle('on', b.dataset.cam === cam));
     viewer.camera.lookAtTransform(Cesium.Matrix4.IDENTITY);
     if (cam === 'top') {
-      const s = D.sphere;
-      const f = viewer.camera.frustum, half = Math.min(f.fovy, f.fov) / 2;   // fit the narrower (vertical) FOV
-      viewer.camera.flyToBoundingSphere(s, { offset: new Cesium.HeadingPitchRange(0, -Cesium.Math.PI_OVER_TWO, (s.radius * 1.3) / Math.tan(half)), duration: 1.0 });
+      viewer.camera.flyTo({ destination: D.overview, orientation: { heading: 0, pitch: -Cesium.Math.PI_OVER_TWO, roll: 0 }, duration: 1.0 });
     }
     if (cam === 'orbit') orbitHeading = headingSm ?? 0;
   }
@@ -364,7 +366,7 @@
   }
 
   // test hook (used by the headless check; harmless otherwise)
-  window.__demo = { seek: (t) => { simT = t; }, cam: (m) => setCam(m), scenario: (s) => setScenario(s), state: () => ({ scenario, simT, T: D && D.T, err: D && errNow(), cam, tilesLoaded: !!(tileset && tileset.tilesLoaded) }) };
+  window.__demo = { fps: (n) => { if (viewer) viewer.targetFrameRate = n; }, seek: (t) => { simT = t; }, cam: (m) => setCam(m), scenario: (s) => setScenario(s), state: () => ({ scenario, simT, T: D && D.T, err: D && errNow(), cam, tilesLoaded: !!(tileset && tileset.tilesLoaded) }) };
 
   boot().catch((err) => { console.error(err && err.message); fallback('The live demo failed to start. Showing the pre-rendered video.'); });
 })();

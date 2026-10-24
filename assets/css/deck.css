@@ -120,3 +120,14 @@ body.draft .tbd { outline: 3px dashed #e0a800; outline-offset: 6px; }
 .s-video h2 { font-size: 48px; margin: 0 auto 24px; width: 1440px; }
 .s-video video { width: 1440px; height: 810px; object-fit: contain; display: block; margin: 0 auto; background: #000; }
 .s-video figcaption { margin: 12px auto 0; width: 1440px; }
+
+/* Results chart (tools/make_results_chart.py): recessive grid, text in ink tokens, colour only on marks */
+.chart { width: 100%; height: auto; display: block; overflow: visible; }
+.chart .grid { stroke: var(--line); stroke-width: 1.5; }
+.chart .tick { font: 400 22px var(--sans); fill: var(--muted); }
+.chart .thr { stroke: var(--ink); stroke-width: 2; stroke-dasharray: 6 6; }
+.chart .thr-l { font: 500 22px var(--sans); fill: var(--ink); }
+.chart .row { font: 600 28px var(--heading); fill: var(--ink); }
+.chart .dot { stroke: #fff; stroke-width: 2; }
+.chart .med { stroke: var(--ink); stroke-width: 3; stroke-linecap: round; }
+.chart .med-l { font: 500 22px var(--sans); fill: var(--ink); }

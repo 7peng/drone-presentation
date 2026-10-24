@@ -11,6 +11,7 @@ It is a static site with no build step.
 - `media/`: web-encoded videos (H.264, ≤1080p, CRF 26–27, `+faststart`). They are committed as plain git files, not LFS, because GitHub Pages does not serve LFS content. Keep each file under ~20 MB.
 - `assets/img/`: still figures. `assets/css/tokens.css` holds the shared palette and fonts.
 - `tools/export_trajectories.py`: regenerates `cesium/data/*.json` from the simulation logs.
+- `tools/make_results_chart.py`: regenerates the per-mission chart on the results slide (inline SVG in `index.html`).
 
 ## Run locally
 

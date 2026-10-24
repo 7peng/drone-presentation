@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Homeward Live Model</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cesium@1.146.0/Build/Cesium/Widgets/widgets.css">
+<link rel="stylesheet" href="live.css">
+<!-- Token: ../config.local.js (git-ignored) sets window.CESIUM_ION_TOKEN; or #token=… / localStorage (same as ../cesium/). -->
+<script src="../config.local.js" onerror="void 0"></script>
+<script src="https://cdn.jsdelivr.net/npm/cesium@1.146.0/Build/Cesium/Cesium.js" onerror="window.__cesiumLoadFailed = true"></script>
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.22.0/dist/ort.all.min.js" onerror="window.__ortLoadFailed = true"></script>
+</head>
+<body>
+<div id="main"></div>
+
+<div id="hud" class="panel top-left">
+  <p class="eyebrow">Live model · Magdeburg Börde</p>
+  <div class="row">
+    <select id="mission"></select>
+    <button id="b-ours">Fly (vision)</button>
+    <button id="b-stock">Fly (stock)</button>
+    <button id="b-speed">1×</button>
+  </div>
+  <div id="status" class="status">Loading…</div>
+  <dl id="stats"></dl>
+</div>
+
+<div id="camwrap" class="panel bottom-left">
+  <p class="eyebrow">Downward camera (live, 224 px)</p>
+  <div class="cams">
+    <figure><div id="nadir"></div><figcaption>now</figcaption></figure>
+    <figure><canvas id="bcimg" width="224" height="224"></canvas><figcaption id="bccap">breadcrumb</figcaption></figure>
+  </div>
+</div>
+
+<script src="nav.js"></script>
+<script src="live.js"></script>
+</body>
+</html>

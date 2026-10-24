@@ -1,0 +1,16 @@
+{
+ "lat0": 52.02,
+ "lon0": 11.45,
+ "ground_h_ellipsoid": 120.0,
+ "ground0_enu_z": 13.44980525970459,
+ "ground_grid": {
+  "file": "ground_i16.bin",
+  "origin_e": -5120.0,
+  "origin_n": -5120.0,
+  "res": 20.0,
+  "rows": 512,
+  "cols": 512,
+  "units": "dm, ENU z relative to the origin ground, row-major, row 0 = south (origin_n)"
+ },
+ "conventions": "local NED metres from (lat0, lon0) on the ellipsoid tangent plane at P0 = (lat0, lon0, ground_h_ellipsoid); ENU z = -D + ground0_enu_z; D = -(height above the ORIGIN ground) (tools/export_trajectories.py)"
+}

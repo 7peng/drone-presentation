@@ -1,0 +1,23 @@
+{
+ "nomatch_gate": 0.04470101743936539,
+ "arrival": 0.9911527037620544,
+ "arrival_p95": 0.7549149990081787,
+ "checkpoint": "/scratch/users/wgpeng/drone-work/training/runs/offset/v3/ckpt_final.pt",
+ "deploy": "/scratch/users/wgpeng/drone-work/training/runs/offset/v3/deploy_mdcal.json",
+ "buckets_m": [
+  50.0,
+  60.0,
+  72.0,
+  86.39999999999999,
+  103.67999999999999,
+  124.41599999999997,
+  149.29919999999996,
+  179.15903999999995,
+  214.99084799999991,
+  257.9890175999999,
+  309.58682111999985,
+  371.50418534399984,
+  445.8050224127998,
+  534.9660268953597
+ ]
+}

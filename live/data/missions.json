@@ -1,0 +1,148 @@
+[
+ {
+  "id": "mission_012",
+  "seed": 1012,
+  "home_ne": [
+   3011.6,
+   -1374.7
+  ],
+  "legs": [
+   [
+    258.3,
+    1647.4
+   ]
+  ],
+  "agl": 168.9,
+  "cruise": 13.8,
+  "wind": 2.46,
+  "wind_from_deg": 36.6,
+  "gust_deg": 2.03,
+  "cam_hz": 3.0,
+  "bc_spacing": 20.0,
+  "att_cov": "0.7",
+  "mag_mode": "heading"
+ },
+ {
+  "id": "mission_010",
+  "seed": 1010,
+  "home_ne": [
+   -1572.2,
+   1371.0
+  ],
+  "legs": [
+   [
+    308.5,
+    640.1
+   ],
+   [
+    326.5,
+    563.0
+   ]
+  ],
+  "agl": 133.8,
+  "cruise": 14.0,
+  "wind": 0.77,
+  "wind_from_deg": 100.8,
+  "gust_deg": 1.55,
+  "cam_hz": 3.0,
+  "bc_spacing": 20.0,
+  "att_cov": "0.7",
+  "mag_mode": "heading"
+ },
+ {
+  "id": "mission_011",
+  "seed": 1011,
+  "home_ne": [
+   3354.4,
+   -1275.5
+  ],
+  "legs": [
+   [
+    185.8,
+    525.1
+   ],
+   [
+    208.1,
+    726.6
+   ]
+  ],
+  "agl": 131.9,
+  "cruise": 12.9,
+  "wind": 0.71,
+  "wind_from_deg": 238.7,
+  "gust_deg": 2.73,
+  "cam_hz": 3.0,
+  "bc_spacing": 20.0,
+  "att_cov": "0.7",
+  "mag_mode": "heading"
+ },
+ {
+  "id": "mission_014",
+  "seed": 1014,
+  "home_ne": [
+   -2783.8,
+   2272.6
+  ],
+  "legs": [
+   [
+    152.3,
+    1383.0
+   ]
+  ],
+  "agl": 155.4,
+  "cruise": 13.3,
+  "wind": 1.44,
+  "wind_from_deg": 281.3,
+  "gust_deg": 2.05,
+  "cam_hz": 3.0,
+  "bc_spacing": 20.0,
+  "att_cov": "0.7",
+  "mag_mode": "heading"
+ },
+ {
+  "id": "mission_032",
+  "seed": 1032,
+  "home_ne": [
+   -232.3,
+   -3973.2
+  ],
+  "legs": [
+   [
+    189.2,
+    1090.6
+   ]
+  ],
+  "agl": 143.4,
+  "cruise": 12.9,
+  "wind": 1.49,
+  "wind_from_deg": 334.9,
+  "gust_deg": 2.4,
+  "cam_hz": 3.0,
+  "bc_spacing": 20.0,
+  "att_cov": "0.7",
+  "mag_mode": "heading"
+ },
+ {
+  "id": "mission_024",
+  "seed": 1024,
+  "home_ne": [
+   -1487.2,
+   -780.8
+  ],
+  "legs": [
+   [
+    39.0,
+    1030.7
+   ]
+  ],
+  "agl": 175.6,
+  "cruise": 12.5,
+  "wind": 0.7,
+  "wind_from_deg": 251.1,
+  "gust_deg": 2.83,
+  "cam_hz": 3.0,
+  "bc_spacing": 20.0,
+  "att_cov": "0.7",
+  "mag_mode": "heading"
+ }
+]

@@ -1,0 +1,22 @@
+:root { --fg: #202630; --bg: #ffffff; --muted: #5f6b7a; --ok: #2e7d4f; --bad: #b3261e; --accent: #1a73e8; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --fg: #e8eaed; --bg: #1f232a; --muted: #9aa4b1; } }
+html, body { margin: 0; height: 100%; background: #000; font: 14px/1.4 "Google Sans", "Noto Sans", Arial, sans-serif; color: var(--fg); }
+#main { position: absolute; inset: 0; }
+.panel { position: absolute; background: color-mix(in srgb, var(--bg) 92%, transparent); border-radius: 10px; padding: 10px 12px; box-shadow: 0 2px 12px rgba(0,0,0,.25); }
+.top-left { top: 12px; left: 12px; max-width: 420px; }
+.bottom-left { bottom: 28px; left: 12px; }
+.eyebrow { margin: 0 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.row { display: flex; gap: 6px; flex-wrap: wrap; }
+button, select { font: inherit; padding: 4px 10px; border-radius: 6px; border: 1px solid #c8cdd4; background: var(--bg); color: var(--fg); cursor: pointer; }
+.status { margin-top: 8px; font-weight: 600; }
+.status.jam { color: var(--bad); }
+.status.home { color: var(--ok); }
+dl { display: grid; grid-template-columns: auto auto; gap: 2px 12px; margin: 6px 0 0; font-size: 13px; }
+dt { color: var(--muted); }
+dd { margin: 0; font-variant-numeric: tabular-nums; }
+.cams { display: flex; gap: 8px; }
+figure { margin: 0; }
+figcaption { font-size: 12px; color: var(--muted); text-align: center; }
+#nadir, #bcimg { width: 224px; height: 224px; display: block; background: #222; }
+#nadir .cesium-widget-credits { display: none; }
+@media (max-width: 640px) { .top-left { right: 12px; } #nadir, #bcimg { width: 140px; height: 140px; } }

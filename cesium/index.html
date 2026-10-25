@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Homeward 3D Replay</title>
+<title>Retrace 3D Replay</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;600;700&amp;family=Noto+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cesium@1.146.0/Build/Cesium/Widgets/widgets.css">
 <link rel="stylesheet" href="../assets/css/tokens.css">
-<link rel="stylesheet" href="demo.css">
+<link rel="stylesheet" href="demo.css?v=1792887987">
 <!-- Token: ../config.local.js (git-ignored) sets window.CESIUM_ION_TOKEN. Missing file is fine. -->
 <script src="../config.local.js" onerror="void 0"></script>
 <script src="https://cdn.jsdelivr.net/npm/cesium@1.146.0/Build/Cesium/Cesium.js" onerror="window.__cesiumLoadFailed = true"></script>
@@ -28,6 +28,7 @@
 
   <div class="panel top-right">
     <div class="status" id="status">GPS OK</div>
+    <div class="ff" id="ff" hidden>&#9193;&#xFE0E; 3× speed</div>
     <dl>
       <dt>Position error</dt><dd id="r-err">0 m</dd>
       <dt>Distance to home</dt><dd id="r-home">0 m</dd>
@@ -71,6 +72,6 @@
 
 <div id="loading">Loading 3D tiles…</div>
 
-<script src="demo.js"></script>
+<script src="demo.js?v=1792887973"></script>
 </body>
 </html>

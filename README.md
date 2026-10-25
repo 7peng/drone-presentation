@@ -1,6 +1,6 @@
 # drone-presentation
 
-Hackathon deck for **Homeward**: vision breadcrumbs that get a drone home when GPS is jammed. It includes a live
+Hackathon deck for **Retrace**: vision breadcrumbs that get a drone home when GPS is jammed. It includes a live
 CesiumJS replay of recorded missions over Google Photorealistic 3D Tiles.
 
 It is a static site with no build step.

@@ -10,6 +10,7 @@
   if (embedded) document.body.classList.add('embed');
   const solo = params.has('solo');                 // ?solo=1: one scenario, no toggle (deck slide 2)
   if (solo) document.body.classList.add('solo');
+  const CUT_M = Number(params.get('cut') ?? 1000);
   const TOKEN_KEY = 'homeward.cesiumIonToken';
   // ours = model v3 (Magdeburg held out of training). Fallback videos are pre-rendered (rth video: model v1).
   const SCN = {
@@ -38,6 +39,19 @@
     try { return localStorage.getItem(TOKEN_KEY) || ''; } catch (e) { return ''; }
   }
 
+  // Turn a Cesium RequestErrorEvent into the reason ion gave (status + message), with the usual fixes for each case.
+  function ionError(err) {
+    let msg = '';
+    try { msg = JSON.parse(err.response).message || ''; } catch (e) { msg = (err && (err.message || err.response)) || ''; }
+    const code = err && err.statusCode;
+    const hint = code === 401 ? 'the token is wrong or expired'
+      : code === 403 ? `the token isn't allowed here: add ${location.origin} to its Allowed URLs, and make sure asset 2275207 is in the token's assets`
+      : code === 404 ? 'asset 2275207 is not in your ion account: add "Google Photorealistic 3D Tiles" from the ion Asset Depot'
+      : code === 429 ? 'rate-limited, wait a minute and reload'
+      : 'check the token';
+    return `${code ? 'HTTP ' + code : 'error'}${msg ? ` (${String(msg).slice(0, 140)})` : ''}, ${hint}`;
+  }
+
   // ---------------------------------------------------------------- fallback video
   function fallback(why) {
     $('hud').hidden = true;
@@ -49,6 +63,9 @@
     v.src = SCN[scenario].video;
     v.play().catch(() => {});
   }
+  // The deck preloads this page before anyone has entered a token. When one is saved anywhere on this origin
+  // (another tab, live/, #token=…), restart if we're still showing the fallback video.
+  addEventListener('storage', (e) => { if (e.key === TOKEN_KEY && e.newValue && !window.__demoReady) location.reload(); });
   $('fb-token').addEventListener('submit', (e) => {
     e.preventDefault();
     const t = $('fb-input').value.trim();
@@ -63,6 +80,13 @@
     const r = await fetch(SCN[name].file);
     if (!r.ok) throw new Error(`data ${SCN[name].file}: HTTP ${r.status}`);
     const d = await r.json();
+    // End the replay once the estimate is CUT_M off the true position (stock drifts ~1.7 km by "home"; 1 km makes the
+    // point and saves time). ?cut=0 plays the full log.
+    const cutAt = CUT_M > 0 ? d.t.findIndex((_, i) => horiz(d.truth[i], d.est[i]) >= CUT_M) : -1;
+    if (cutAt > 0) {
+      for (const k of ['t', 'truth', 'est']) d[k] = d[k].slice(0, cutAt + 1);
+      d.events = d.events.filter((e) => e.t <= d.t[cutAt]).concat({ t: d.t[cutAt], key: 'cut', label: `${CUT_M / 1000} km off` });
+    }
     const C = Cesium.Cartesian3;
     d.P = d.truth.map((p) => C.fromDegrees(p[1], p[0], p[2]));
     d.E = d.est.map((p) => C.fromDegrees(p[1], p[0], p[2] + 4));   // +4 m: drawn above the white path it may retrace (no z-fight)
@@ -198,7 +222,8 @@
     $('sw-est').classList.toggle('ok', !stock);
     const ticks = $('ticks');
     ticks.innerHTML = '';
-    for (const [key, txt] of [['jam', 'jam'], ['home', 'home']]) {
+    for (const [key, txt] of [['jam', 'jam'], ['home', 'home'], ['cut', `${CUT_M / 1000} km off`]]) {
+      if (D.ev[key] === undefined) continue;
       const x = (D.ev[key] / D.T) * 100;
       ticks.insertAdjacentHTML('beforeend', `<i class="${key}" style="left:${x}%"></i><span style="left:${x}%">${txt}</span>`);
     }
@@ -210,12 +235,16 @@
     const st = $('status');
     st.textContent = home ? (stock ? 'Thinks it is home' : 'Home') : jam ? 'GPS jammed' : 'GPS OK';
     st.className = 'status' + (home ? ' home' : jam ? ' jam' : '');
+    $('ff').hidden = !fastForward();
     const e = errNow();
     $('r-err').textContent = fmtM(e);
     $('r-err').classList.toggle('bad', e > 20);
     $('r-home').textContent = fmtM(horiz(geo(D.truth, simT), D.home));
     const card = $('card');
-    if (home && simT >= D.ev.home + 1) {
+    if (D.ev.cut !== undefined && simT >= D.ev.cut) {
+      card.hidden = false;
+      card.innerHTML = `<h3>${CUT_M / 1000} km off course, and still drifting.</h3>`;
+    } else if (home && simT >= D.ev.home + 1) {
       card.hidden = false;
       card.innerHTML = stock
         ? `<h3>Thinks it's home. Actually ${Math.round(e)} m away.</h3>`
@@ -226,11 +255,13 @@
     $('b-speed').textContent = SPEEDS[speedIdx] === 'auto' ? 'Auto' : `${SPEEDS[speedIdx]}×`;
   }
 
+  // talk pacing: the outbound (GPS OK) plays FAST_OUT x faster than everything after the jam, with a badge saying so
+  const BASE_RATE = 12, FAST_OUT = 3;
+  const fastForward = () => SPEEDS[speedIdx] === 'auto' && simT < D.ev.jam;
   function rate() {
     const s = SPEEDS[speedIdx];
     if (s !== 'auto') return s;
-    // talk pacing: the outbound (GPS OK) plays at 2x the speed of everything after the jam
-    return simT < D.ev.jam ? 24 : 12;
+    return fastForward() ? BASE_RATE * FAST_OUT : BASE_RATE;
   }
 
   // ---------------------------------------------------------------- camera
@@ -357,7 +388,7 @@
       viewer.scene.primitives.add(tileset);
     } catch (err) {
       viewer.destroy(); viewer = null;
-      return fallback('Could not load Google 3D Tiles from Cesium ion (token invalid or not allowed for this URL). Showing the pre-rendered video.');
+      return fallback(`Cesium ion refused Google 3D Tiles: ${ionError(err)}. Showing the pre-rendered video.`);
     }
     $('hud').hidden = false;
     $('loading').hidden = true;

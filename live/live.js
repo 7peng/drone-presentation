@@ -19,7 +19,18 @@
     present: params.get('present') === '1' || params.has('embed'), debug: params.get('present') !== '1' && !params.has('embed'), showTruth: false, wind: params.has('wind') ? parseFloat(params.get('wind')) : null,
     realism: params.get('ideal') !== '1', mainMode: 'chase' };
   const SPEEDS = ['auto', 1, 2, 4, 8, Infinity];
-  S.perf = { main: { ms: 0, dt: 16, last: 0 }, tiles: {} };
+  // Deck navigation is forwarded from the first moment, not after boot(): the deck focuses this iframe, so if boot is
+  // slow or stops early (no token, tile errors) the presenter would otherwise be stuck on this slide.
+  const DECK_KEYS = ['PageDown', 'PageUp', 'ArrowRight', 'ArrowLeft', 'n', 'N', 'p', 'P', 'f', 'F', 'Home', 'End'];
+  if (params.has('embed')) {
+    document.addEventListener('keydown', (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (DECK_KEYS.includes(e.key)) { parent.postMessage({ type: 'deck-key', key: e.key }, '*'); e.preventDefault(); e.stopImmediatePropagation(); }
+    });
+  }
+  // A token pasted on another slide (cesium/ stores it under the same key) restarts this page if it was waiting for one.
+  addEventListener('storage', (e) => { if (e.key === TOKEN_KEY && e.newValue && !window.__liveReady) location.reload(); });
+  S.perf ={ main: { ms: 0, dt: 16, last: 0 }, tiles: {} };
   function tileStats(ts, name) {   // tiles loaded per second + pending requests (debug panel)
     const T = (S.perf.tiles[name] = { loaded: 0, rate: 0, t0: performance.now(), ts });
     ts.tileLoad.addEventListener(() => { T.loaded++; });
@@ -621,7 +632,6 @@
     if (S.wind !== null) { ws.value = S.wind; wl.textContent = `${S.wind} m/s`; }
     $('debug').hidden = !S.debug;
     segOn();
-    const DECK_KEYS = ['PageDown', 'PageUp', 'ArrowRight', 'ArrowLeft', 'n', 'N', 'p', 'P', 'f', 'F', 'Home', 'End'];
     if (params.has('embed')) {
       window.addEventListener('message', (e) => {
         if (e.data?.type !== 'demo-scenario') return;
@@ -631,7 +641,6 @@
     }
     document.addEventListener('keydown', (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.metaKey || e.ctrlKey || e.altKey) return;
-      if (params.has('embed') && DECK_KEYS.includes(e.key)) { parent.postMessage({ type: 'deck-key', key: e.key }, '*'); e.preventDefault(); return; }
       const k = e.key.toLowerCase();
       if (k === 'd') { S.debug = !S.debug; $('debug').hidden = !S.debug; }
       else if (k === 't') { S.showTruth = !S.showTruth; if (S.mission) drawBc(S.mission, S.lastFrame); }

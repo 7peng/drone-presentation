@@ -54,6 +54,20 @@
   }
   const groundCart = (n, e, up = 0.5) => nedToCart(n, e, -(ground.at(n, e) + up));
 
+  // Google's tile API rate-limits bursts (HTTP 429 on root.json); retry tileset creation with backoff instead of failing
+  const errMsg = (e) => (e && (e.message || (e.statusCode ? `HTTP ${e.statusCode}` : '') || (e.response && `HTTP ${e.response.status}`))) || String(e);
+  async function withRetry(fn, what) {
+    const waits = [2, 4, 8, 16, 16, 16];
+    for (let i = 0; ; i++) {
+      try { return await fn(); } catch (e) {
+        if (i >= waits.length) throw e;
+        console.warn(`${what} failed (${errMsg(e)}); retry in ${waits[i]} s`);
+        status(`Loading terrain… (retrying in ${waits[i]} s)`);
+        await sleep(waits[i] * 1000);
+      }
+    }
+  }
+
   // ------------------------------------------------------------------ camera (second widget) + rectifier
   class DroneCam {
     constructor(el, sse) {
@@ -70,8 +84,8 @@
       this.ctx = this.cv.getContext('2d', { willReadFrequently: true });
     }
     async init() {
-      this.ts = await Cesium.Cesium3DTileset.fromIonAssetId(2275207, { maximumScreenSpaceError: this.sse, showCreditsOnScreen: false,
-        cacheBytes: 768 * 1024 * 1024, maximumCacheOverflowBytes: 512 * 1024 * 1024 });
+      this.ts = await withRetry(() => Cesium.Cesium3DTileset.fromIonAssetId(2275207, { maximumScreenSpaceError: this.sse, showCreditsOnScreen: false,
+        cacheBytes: 768 * 1024 * 1024, maximumCacheOverflowBytes: 512 * 1024 * 1024 }), 'camera tileset');
       this.w.scene.primitives.add(this.ts);
       tileStats(this.ts, 'nadir');
     }
@@ -180,8 +194,8 @@
     viewer.scene.fog.enabled = true;
     viewer.scene.postProcessStages.fxaa.enabled = false;
     // cheaper streaming for the context view: coarser LOD, dynamic SSE (fewer far tiles), foveated loading, bigger cache
-    const ts = await Cesium.Cesium3DTileset.fromIonAssetId(2275207, { maximumScreenSpaceError: parseFloat(params.get('mainsse') || '28'), showCreditsOnScreen: true,
-      dynamicScreenSpaceError: true, foveatedScreenSpaceError: true, cacheBytes: 768 * 1024 * 1024, maximumCacheOverflowBytes: 512 * 1024 * 1024 });
+    const ts = await withRetry(() => Cesium.Cesium3DTileset.fromIonAssetId(2275207, { maximumScreenSpaceError: parseFloat(params.get('mainsse') || '28'), showCreditsOnScreen: true,
+      dynamicScreenSpaceError: true, foveatedScreenSpaceError: true, cacheBytes: 768 * 1024 * 1024, maximumCacheOverflowBytes: 512 * 1024 * 1024 }), 'map tileset');
     viewer.scene.primitives.add(ts);
     tileStats(ts, 'main');
     let tpre = 0;
@@ -445,7 +459,7 @@
       const r = m.advance(0.1);
       if (m.t > st0) S.navMs = 0.9 * (S.navMs || 0) + 0.1 * (performance.now() - tn0) / Math.max(1, Math.round((m.t - st0) / 0.02));
       if (r.type === 'done') break;
-      const asyncCam = !opts.sync && (speed() === 'auto' || isFinite(speed()));
+      const asyncCam = !opts.sync && params.get('async') === '1' && (speed() === 'auto' || isFinite(speed()));   // opt-in until verified
       if (r.type === 'cam' && asyncCam) {   // never stall the flight on a frame: one in flight at a time, the rest skipped
         if (S.inFlight) { m.skipPending(); continue; }
         const D = m.detach();
@@ -596,7 +610,7 @@
     await Model.init(params.get('ep') || 'wasm', thr);
     S.cam = new DroneCam('nadir', parseFloat(params.get('sse') || '16'));
     await S.cam.init();
-    if (params.get('main') !== '0') await initMain();
+    if (params.get('main') !== '0') { await sleep(1500); await initMain(); }   // stagger the two root requests
     const go = (vision) => { if (S.running) S.abort = S.mission; setTimeout(() => fly(sel.value, vision), S.running ? 300 : 0); };
     $('b-fly').onclick = () => go(S.vision);
     document.querySelectorAll('[data-scn]').forEach((b) => (b.onclick = () => { S.vision = b.dataset.scn === 'ours'; segOn(); go(S.vision); }));
@@ -634,7 +648,7 @@
     if (params.get('autoplay')) go(params.get('autoplay') !== 'stock');
     // deck embed: the iframe is loaded minutes before its slide -- pre-flight the return corridor now, then wait for Space
     else if (params.has('embed') && params.get('start') === 'jam') {
-      S.preparing = fly(sel.value, true, { prepareOnly: true }).then((r) => { S.prepared = r; }).catch((e) => console.error('prepare failed:', e && e.message));
+      S.preparing = fly(sel.value, true, { prepareOnly: true }).then((r) => { S.prepared = r; }).catch((e) => console.error('prepare failed:', errMsg(e)));
     }
   }
 
@@ -676,5 +690,5 @@
     },
   };
 
-  boot().catch((err) => { console.error('boot failed:', err && err.message); status('Failed to start: ' + (err && err.message), 'jam'); });
+  boot().catch((err) => { console.error('boot failed:', errMsg(err)); status('Failed to start: ' + errMsg(err) + ' — reload in 30 s', 'jam'); });
 })();

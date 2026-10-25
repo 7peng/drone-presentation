@@ -445,6 +445,36 @@
       const r = m.advance(0.1);
       if (m.t > st0) S.navMs = 0.9 * (S.navMs || 0) + 0.1 * (performance.now() - tn0) / Math.max(1, Math.round((m.t - st0) / 0.02));
       if (r.type === 'done') break;
+      const asyncCam = !opts.sync && (speed() === 'auto' || isFinite(speed()));
+      if (r.type === 'cam' && asyncCam) {   // never stall the flight on a frame: one in flight at a time, the rest skipped
+        if (S.inFlight) { m.skipPending(); continue; }
+        const D = m.detach();
+        S.inFlight = (async () => {
+          try {
+            const cap = await S.cam.capture(r, maxWait);
+            if (S.mission !== m) return;
+            drawRect(cap);
+            const enc = await Model.encode(cap.rgb), b = m.bcs[r.k];
+            const res = await Model.match(enc.desc, cap.mask14, b.desc, b.mask14);
+            let matMs = res.ms;
+            res.extra = [];
+            for (const { j, fov } of r.extra || []) {
+              let qd = enc.desc, qm = cap.mask14;
+              if (Math.abs(fov - r.fovOut) > 1e-6) { const rr = rectify(cap.raw, r.Rest, r.Rtgt, r.rawFov, fov); const e2 = await Model.encode(rr.rgb); qd = e2.desc; qm = rr.mask14; matMs += e2.ms; }
+              const x = await Model.match(qd, qm, m.bcs[j].desc, m.bcs[j].mask14);
+              matMs += x.ms; delete x.probs; x.j = j; res.extra.push(x);
+            }
+            res.ms = enc.ms + matMs;
+            if (S.mission !== m || m.done) return;
+            m.provideDelayed(D, res);
+            const f = D.fr;
+            Object.assign(f, { renderMs: cap.renderMs, rectMs: cap.rectMs, loaded: cap.loaded, encMs: enc.ms, gpuMs: cap.gpuMs, waitMs: cap.waitMs, matMs, mainMs: S.perf.main.ms, mainFps: 1000 / Math.max(S.perf.main.dt, 1) });
+            S.lastMs = { enc: enc.ms, mat: matMs, render: cap.renderMs, rect: cap.rectMs, gpu: cap.gpuMs, wait: cap.waitMs, nav: S.navMs };
+            drawBc(m, f); addFixEnt(m, f); S.lastFrame = f;
+          } catch (err) { console.error('frame failed:', err && err.message); } finally { S.inFlight = null; }
+        })();
+        continue;
+      }
       if (r.type === 'bc' || r.type === 'cam') {
         const cap = await S.cam.capture(r, r.type === 'bc' ? Math.max(maxWait, 30000) : maxWait);   // breadcrumbs must be sharp
         drawRect(cap);
@@ -489,6 +519,7 @@
         hud(m);
       }
     }
+    if (S.inFlight) await S.inFlight;
     S.running = false;
     hud(m);
     const sum = m.summary();

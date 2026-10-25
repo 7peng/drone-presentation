@@ -402,6 +402,12 @@
       return null;
     }
 
+    // Non-blocking camera (live talk mode): detach() hands the pending camera request to the caller and lets the sim fly on;
+    // provideDelayed() applies the result later, shifted by the KF's own motion since the frame was taken (delayed-measurement
+    // approximation). skipPending() drops a frame while another one is still being processed.
+    detach() { const P = this.pending; this.pending = null; if (P) P.x0 = [this.kf.x[0], this.kf.x[1]]; return P; }
+    skipPending() { const P = this.pending; this.pending = null; if (P && P.fr) P.fr.status = 'skipped'; }
+    provideDelayed(P, res) { if (!P) return; this.pending = P; this.provide(res); }
     // bc: {desc, mask}; cam: {mu: [d_row, d_col], cov: [[..],[..]] (cells²), pArr, pNm, probs, ms}
     provide(res) {
       const P = this.pending;
@@ -428,10 +434,11 @@
         cov = [0, 1].map((i) => [0, 1].map((j) => covs.reduce((a, cc) => a + cc[i][j], 0) / n));
         fr.nFused = n; fr.fix0 = [b.pe[0] - ne[0], b.pe[1] - ne[1]];
       }
+      if (P.x0) { fix = [fix[0] + this.kf.x[0] - P.x0[0], fix[1] + this.kf.x[1] - P.x0[1]]; fr.latency = this.t - fr.t; fr.ptNow = this.p.slice(); }
       const trueNe = [b.pt[0] - fr.pt[0], b.pt[1] - fr.pt[1]];
       Object.assign(fr, { ne, trueNe, fix, cov, covModel: covM, mu: res.mu, covCells: c, probs: res.probs, bucket: b.bucket, pArr: res.pArr, pNm: res.pNm, ms: res.ms,
         trueCells: [trueNe[0] / m, -trueNe[1] / m], offErr: hyp(ne[0] - trueNe[0], ne[1] - trueNe[1]),
-        fixErr: hyp(fix[0] - fr.pt[0], fix[1] - fr.pt[1]), sigma: Math.sqrt(Math.max(cov[0][0], cov[1][1])) });
+        fixErr: P.x0 ? hyp(fix[0] - this.p[0], fix[1] - this.p[1]) : hyp(fix[0] - fr.pt[0], fix[1] - fr.pt[1]), sigma: Math.sqrt(Math.max(cov[0][0], cov[1][1])) });
       if (res.pNm >= thr.nomatch_gate) fr.status = 'no-match';
       else {
         const [ok, maha] = this.kf.update(fix, cov, [0, 1], 3.0);
@@ -447,6 +454,7 @@
       const ret = this.traj.filter((r) => r[5] >= 2), e = ret.map((r) => hyp(r[1] - r[3], r[2] - r[4])).sort((a, b) => a - b);
       const q = (a, f) => (a.length ? a[Math.min(a.length - 1, Math.floor(f * a.length))] : null);
       const st = (s) => this.frames.filter((f) => f.status === s).length;
+      const att = this.frames.length - st('skipped');
       const srt = (a) => a.slice().sort((x, y) => x - y);
       const fe = srt(this.frames.filter((f) => f.status === 'fused').map((f) => f.fixErr));
       const oe = srt(this.frames.filter((f) => f.offErr !== undefined).map((f) => f.offErr));
@@ -457,8 +465,8 @@
       return {
         id: this.spec.id, vision: this.vision, realism: this.realism, end: this.end, final_dist_m: hyp(this.p[0] - this.home[0], this.p[1] - this.home[1]),
         final_est_err_m: hyp(this.p[0] - this.kf.x[0], this.p[1] - this.kf.x[1]), t_jam: this.tJam, t_end: this.t,
-        breadcrumbs: this.bcs.length, frames: this.frames.length, fused: st('fused'), gated: st('gated'), no_match: st('no-match'),
-        fix_rate: this.frames.length ? st('fused') / this.frames.length : null,
+        breadcrumbs: this.bcs.length, frames: att, skipped: st('skipped'), fused: st('fused'), gated: st('gated'), no_match: st('no-match'),
+        fix_rate: att ? st('fused') / att : null,
         fix_err_fused_median_m: q(fe, 0.5), fix_err_fused_p90_m: q(fe, 0.9),
         offset_err_all_median_m: q(oe, 0.5), offset_err_all_p90_m: q(oe, 0.9),
         home_fix_err_median_m: q(srt(this.frames.filter((f) => f.k === 0 && f.status === 'fused').map((f) => f.fixErr)), 0.5),

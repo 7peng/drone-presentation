@@ -160,3 +160,6 @@ table.compact th:first-child, table.compact td:first-child { padding-left: 0; }
 
 /* slide 3: 2D route + model-vector plot */
 .s-how svg.plot3 { display: block; width: 100%; height: auto; }
+
+/* slide 5: title on top, the three numbers centred on the slide */
+.s-metrics .metrics.cmp { position: absolute; left: 160px; right: 160px; top: 50%; transform: translateY(-50%); margin: 0; }

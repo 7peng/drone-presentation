@@ -45,7 +45,7 @@ svg = []
 # ---- panel A: whole route
 allp = np.vstack([out, ret])
 pad = 120
-A, sA = mapper(allp[:, 0].min() - pad, allp[:, 0].max() + pad, allp[:, 1].min() - pad, allp[:, 1].max() + pad, 40, 40, 600, 560)
+A, sA = mapper(allp[:, 0].min() - pad, allp[:, 0].max() + pad, allp[:, 1].min() - pad, allp[:, 1].max() + pad, 20, 30, 640, 580)
 svg.append(f'<polyline points="{poly(out, A, 5)}" fill="none" stroke="{HAIR}" stroke-width="3"/>')
 for n, e in bcs[::2]:
     x, y = A(n, e)
@@ -62,67 +62,71 @@ zx0, zy0 = A(P[0] + ZW, P[1] - ZW)
 zx1, zy1 = A(P[0] - ZW, P[1] + ZW)
 zc = ((zx0 + zx1) / 2, (zy0 + zy1) / 2)
 svg.append(f'<circle cx="{zc[0]:.1f}" cy="{zc[1]:.1f}" r="14" fill="none" stroke="{GREEN}" stroke-width="3"/>')
-X0 = 700 + (900 - 560) / 2
-svg.append(f'<path d="M{zc[0] + 10:.1f},{zc[1] - 10:.1f} L{X0:.1f},40 M{zc[0] + 10:.1f},{zc[1] + 10:.1f} L{X0:.1f},600" stroke="{GREEN}" stroke-width="1.5" stroke-dasharray="4 6"/>')
+
 bx = 40 + 0
 svg.append(f'<path d="M{bx},590 h{500 * sA:.1f}" stroke="{MUTED}" stroke-width="2"/><text x="{bx}" y="616" class="pl m">500 m</text>')
 
-# ---- panel B: zoom
-B, sB = mapper(P[0] - ZW, P[0] + ZW, P[1] - ZW, P[1] + ZW, 700, 40, 900, 560)
-X0 = 700 + (900 - 560) / 2
-svg.append(f'<rect x="{X0:.1f}" y="40" width="560" height="560" fill="#f6f8fa" stroke="{GREEN}" stroke-width="3" rx="6"/>')
-svg.append(f'<clipPath id="zc"><rect x="{X0:.1f}" y="40" width="560" height="560" rx="6"/></clipPath><g clip-path="url(#zc)">')
-near = lambda p: np.all(np.abs(p - P) < ZW * 1.6, axis=1)
-o2 = out[near(out)]
-svg.append(f'<polyline points="{poly(o2, B)}" fill="none" stroke="{HAIR}" stroke-width="5"/>')
-r2 = ret[near(ret)]
-svg.append(f'<polyline points="{poly(r2, B)}" fill="none" stroke="{INK}" stroke-width="4"/>')
-for i, (n, e) in enumerate(bcs):
-    if np.all(np.abs(np.array([n, e]) - P) < ZW * 1.2):
-        x, y = B(n, e)
-        svg.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{14 if i == k else 9}" fill="{BLUE}" opacity="{1 if i == k else .45}"/>')
-# model fix with 1-sigma circle, and the predicted vector fix -> breadcrumb k
-fx, fy = B(*fix)
-svg.append(f'<circle cx="{fx:.1f}" cy="{fy:.1f}" r="{sig * sB:.1f}" fill="{GREEN}" fill-opacity=".12" stroke="{GREEN}" stroke-width="2" stroke-dasharray="6 5"/>')
-kx, ky = B(*bc)
-ang = math.atan2(ky - fy, kx - fx)
-L = math.hypot(kx - fx, ky - fy) - 14
-ex, ey = fx + L * math.cos(ang), fy + L * math.sin(ang)
-svg.append(f'<line x1="{fx:.1f}" y1="{fy:.1f}" x2="{ex:.1f}" y2="{ey:.1f}" stroke="{GREEN}" stroke-width="6"/>')
-a1, a2 = ang + 2.6, ang - 2.6
-svg.append(f'<path d="M{ex + 16 * math.cos(ang):.1f},{ey + 16 * math.sin(ang):.1f} L{ex + 18 * math.cos(a1):.1f},{ey + 18 * math.sin(a1):.1f} L{ex + 18 * math.cos(a2):.1f},{ey + 18 * math.sin(a2):.1f} z" fill="{GREEN}"/>')
-svg.append(f'<circle cx="{fx:.1f}" cy="{fy:.1f}" r="8" fill="{GREEN}"/>')
-px, py = B(*P)
-svg.append(f'<g transform="translate({px:.1f},{py:.1f})" stroke="{INK}" stroke-width="3" fill="#fff">'
-           '<line x1="-11" y1="-11" x2="11" y2="11"/><line x1="-11" y1="11" x2="11" y2="-11"/>'
-           '<circle cx="-11" cy="-11" r="6"/><circle cx="11" cy="11" r="6"/><circle cx="-11" cy="11" r="6"/><circle cx="11" cy="-11" r="6"/></g>')
-svg.append("</g>")
-mid = ((fx + kx) / 2, (fy + ky) / 2)
-nx, ny = -math.sin(ang), math.cos(ang)
-svg.append(f'<text x="{X0 + 24:.1f}" y="84" class="pl g">model → breadcrumb #{k}: {math.hypot(*off):.0f} m</text>')
-svg.append(f'<path d="M{X0 + 20:.1f},580 h{10 * sB:.1f}" stroke="{MUTED}" stroke-width="2"/><text x="{X0 + 20:.1f}" y="572" class="pl m">10 m</text>')
+# ---- right: model architecture, fed with the real live frame + breadcrumb from the circled moment
+from PIL import Image
+q = np.load(RUN + "rect_query.npy", mmap_mode="r")[f["rect_i"]]
+bimg = np.load(RUN + "rect_bc.npy", mmap_mode="r")[k]
+IMG = "/scratch/users/wgpeng/drone-presentation/assets/img/"
+Image.fromarray(np.ascontiguousarray(q)).save(IMG + "s3_live.jpg", quality=85)
+Image.fromarray(np.ascontiguousarray(bimg)).save(IMG + "s3_bc.jpg", quality=85)
+X0 = 760
+svg.append(f'<path d="M{zc[0] + 12:.1f},{zc[1] - 8:.1f} L{X0 - 6},{60} M{zc[0] + 12:.1f},{zc[1] + 8:.1f} L{X0 - 6},{580}" stroke="{GREEN}" stroke-width="1.5" stroke-dasharray="4 6"/>')
 
-# ---- legend (right column)
-LX = X0 + 560 + 40
-items = [("line", HAIR, 5, "outbound (GPS)"), ("dot", BLUE, 0, "breadcrumb, every 20 m"), ("line", INK, 3, "return (GPS jammed)"),
-         ("arrow", GREEN, 6, "model's vector"), ("ring", GREEN, 2, "fix ± 1σ"), ("drone", INK, 3, "true drone")]
-for i, (kind, col, w, lab) in enumerate(items):
-    y = 70 + i * 52
+
+def box(x, y, w, h, title, sub, cls="ours"):
+    fill, stroke = ("#eef3f9", BLUE) if cls == "ours" else ("#fff", HAIR)
+    svg.append(f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="10" fill="{fill}" stroke="{stroke}" stroke-width="2"/>')
+    svg.append(f'<text x="{x + w / 2}" y="{y + h / 2 - (8 if sub else -9)}" class="pl b" text-anchor="middle">{title}</text>')
+    for i, line in enumerate(sub):
+        svg.append(f'<text x="{x + w / 2}" y="{y + h / 2 + 24 + 26 * i}" class="pl m" text-anchor="middle">{line}</text>')
+
+
+def arrow(x1, y1, x2, y2, col=MUTED):
+    svg.append(f'<path d="M{x1},{y1} L{x2 - 10},{y2}" stroke="{col}" stroke-width="2.5" fill="none"/><path d="M{x2},{y2} l-14,-7 v14 z" fill="{col}" transform="rotate({math.degrees(math.atan2(y2 - y1, x2 - x1)):.1f} {x2} {y2})"/>')
+
+
+S = 168                                            # thumbnail size
+rows = [(60, "s3_live.jpg", "live frame", "now, rectified"), (412, "s3_bc.jpg", f"breadcrumb #{k}", "saved on the way out")]
+for y, img, t1, t2 in rows:
+    svg.append(f'<image href="assets/img/{img}" x="{X0}" y="{y}" width="{S}" height="{S}"/>')
+    svg.append(f'<rect x="{X0}" y="{y}" width="{S}" height="{S}" fill="none" stroke="{HAIR}" stroke-width="2"/>')
+    svg.append(f'<text x="{X0 + S / 2}" y="{y - 14 if y < 300 else y + S + 34}" class="pl m" text-anchor="middle"><tspan class="b0">{t1}</tspan> · {t2}</text>')
+    box(X0 + S + 60, y + 4, 250, S - 8, "Encoder", ["MobileNetV3-S", "frozen + small head"])
+    arrow(X0 + S + 6, y + S / 2, X0 + S + 56, y + S / 2)
+    gx = X0 + S + 60 + 250 + 50
+    for j in range(3):                               # stacked grid glyph = 14x14x16 descriptor
+        svg.append(f'<rect x="{gx + 10 - 5 * j}" y="{y + 40 + 5 * j}" width="80" height="80" fill="#fff" stroke="{BLUE}" stroke-width="2"/>')
+    for g in range(1, 4):
+        svg.append(f'<path d="M{gx + g * 20},{y + 50} v80 M{gx},{y + 50 + g * 20} h80" stroke="{BLUE}" stroke-width="1" opacity=".5"/>')
+    svg.append(f'<text x="{gx + 40}" y="{y + 160}" class="pl m" text-anchor="middle">14×14×16</text>')
+    arrow(X0 + S + 60 + 250 + 4, y + S / 2, gx - 8, y + S / 2)
+MX = X0 + S + 60 + 250 + 50 + 130
+box(MX, 236, 240, 168, "Match", ["slide ±7 cells", "softmax over 225"])
+arrow(MX - 40, 60 + S / 2, MX - 4, 290)
+arrow(MX - 40, 412 + S / 2, MX - 4, 350)
+OX = MX + 240 + 60
+outs = [("offset (N, E)", "metres"), ("uncertainty", "2×2 covariance"), ("arrived?", "probability"), ("no match?", "probability")]
+for i, (o1, o2) in enumerate(outs):
+    y = 150 + i * 92
+    svg.append(f'<text x="{OX + 30}" y="{y + 8}" class="pl b">{o1}</text><text x="{OX + 30}" y="{y + 38}" class="pl m">{o2}</text>')
+    svg.append(f'<path d="M{MX + 244},320 C{OX - 20},320 {OX - 30},{y} {OX + 16},{y}" stroke="{MUTED}" stroke-width="2" fill="none"/>')
+svg.append(f'<text x="{OX + 30}" y="{150 + 4 * 92 + 18}" class="pl g">→ position fix for PX4</text>')
+# left legend
+for i, (kind, col, lab) in enumerate([("line", HAIR, "outbound (GPS)"), ("dot", BLUE, "breadcrumb (20 m)"), ("line", INK, "return (jammed)")]):
+    lx = 40 + i * 270
     if kind == "line":
-        svg.append(f'<line x1="{LX}" y1="{y}" x2="{LX + 34}" y2="{y}" stroke="{col}" stroke-width="{w}"/>')
-    elif kind == "dot":
-        svg.append(f'<circle cx="{LX + 17}" cy="{y}" r="8" fill="{col}"/>')
-    elif kind == "arrow":
-        svg.append(f'<line x1="{LX}" y1="{y}" x2="{LX + 26}" y2="{y}" stroke="{col}" stroke-width="5"/><path d="M{LX + 38},{y} l-14,-8 v16 z" fill="{col}"/>')
-    elif kind == "ring":
-        svg.append(f'<circle cx="{LX + 17}" cy="{y}" r="13" fill="{col}" fill-opacity=".12" stroke="{col}" stroke-width="2" stroke-dasharray="5 4"/><circle cx="{LX + 17}" cy="{y}" r="5" fill="{col}"/>')
+        svg.append(f'<line x1="{lx}" y1="650" x2="{lx + 30}" y2="650" stroke="{col}" stroke-width="5"/>')
     else:
-        svg.append(f'<g transform="translate({LX + 17},{y}) scale(.7)" stroke="{col}" stroke-width="3" fill="#fff"><line x1="-11" y1="-11" x2="11" y2="11"/><line x1="-11" y1="11" x2="11" y2="-11"/><circle cx="-11" cy="-11" r="6"/><circle cx="11" cy="11" r="6"/><circle cx="-11" cy="11" r="6"/><circle cx="11" cy="-11" r="6"/></g>')
-    svg.append(f'<text x="{LX + 52}" y="{y + 8}" class="pl">{lab}</text>')
+        svg.append(f'<circle cx="{lx + 15}" cy="650" r="7" fill="{col}"/>')
+    svg.append(f'<text x="{lx + 42}" y="658" class="pl m">{lab}</text>')
 
 body = "\n      ".join(svg)
-out_svg = f'''<svg class="plot3" viewBox="0 0 1920 640" role="img" aria-label="Route cx_011 with breadcrumbs, and a close-up of one return frame showing the model's vector from its position fix to the matched breadcrumb">
-      <style>.pl{{font:500 26px 'Google Sans','Noto Sans',sans-serif;fill:{INK}}} .pl.m{{fill:{MUTED};font-size:22px}} .pl.g{{fill:{GREEN};font-weight:600;paint-order:stroke;stroke:#f6f8fa;stroke-width:10px}} .pl.h{{paint-order:stroke;stroke:#fff;stroke-width:10px}}</style>
+out_svg = f'''<svg class="plot3" viewBox="0 0 1920 680" role="img" aria-label="Route cx_011 with breadcrumbs, and a close-up of one return frame showing the model's vector from its position fix to the matched breadcrumb">
+      <style>.pl{{font:500 26px 'Google Sans','Noto Sans',sans-serif;fill:{INK}}} .pl.m{{fill:{MUTED};font-size:22px}} .pl.b{{font-weight:600;font-size:28px}} .b0{{fill:{INK};font-weight:600}} .pl.g{{fill:{GREEN};font-weight:600;paint-order:stroke;stroke:#f6f8fa;stroke-width:10px}} .pl.h{{paint-order:stroke;stroke:#fff;stroke-width:10px}}</style>
       {body}
     </svg>'''
 p = "/scratch/users/wgpeng/drone-presentation/index.html"

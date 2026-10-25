@@ -157,3 +157,9 @@ table.compact th:first-child, table.compact td:first-child { padding-left: 0; }
 .metrics.cmp .metric .value { font-size: 84px; }
 .metrics.cmp .metric .value span { font-size: 32px; }
 .metrics.cmp .metric p b { color: var(--ink); font-weight: 600; }
+
+/* slide 3: 2D route + model-vector plot */
+.s-how svg.plot3 { display: block; width: 100%; height: auto; }
+
+/* slide 5: title on top, the three numbers centred on the slide */
+.s-metrics .metrics.cmp { position: absolute; left: 160px; right: 160px; top: 50%; transform: translateY(-50%); margin: 0; }
